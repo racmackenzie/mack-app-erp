@@ -1,11 +1,12 @@
-import { Home, Users, FolderKanban, CalendarDays } from 'lucide-react';
+import { Home, Users, FolderKanban, CalendarDays, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   currentRoute: string;
   navigate: (route: string) => void;
+  handleLogout: () => Promise<void> | void;
 }
 
-export function Sidebar({ currentRoute, navigate }: SidebarProps) {
+export function Sidebar({ currentRoute, navigate, handleLogout }: SidebarProps) {
   const navItems = [
     { id: '/dashboard', label: 'Início', icon: Home },
     { id: '/associados', label: 'Membros', icon: Users },
@@ -42,6 +43,16 @@ export function Sidebar({ currentRoute, navigate }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="p-4 border-t border-brand-border">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 rounded-[12px] font-medium transition-colors w-full text-text-muted hover:bg-brand-surface-raised hover:text-text-main"
+        >
+          <LogOut size={20} />
+          Sair
+        </button>
+      </div>
     </aside>
   );
 }

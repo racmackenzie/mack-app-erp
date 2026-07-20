@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface LoginProps {
   onLogin: (asGuest: boolean) => void;
@@ -8,13 +9,36 @@ interface LoginProps {
 export function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Simulating authentication
-    if (email && password) {
-      onLogin(false); // Logged in as Member
+    setLoading(true);
+    setErrorMessage('');
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      const invalidCredentials =
+        error.message.toLowerCase().includes('invalid login credentials') ||
+        error.message.toLowerCase().includes('invalid') ||
+        error.status === 400;
+
+      setErrorMessage(
+        invalidCredentials
+          ? 'E-mail ou senha inválidos. Verifique suas credenciais e tente novamente.'
+          : 'Não foi possível realizar o login. Tente novamente em instantes.'
+      );
+      setLoading(false);
+      return;
     }
+
+    onLogin(false);
+    setLoading(false);
   };
 
   return (
@@ -66,12 +90,19 @@ export function Login({ onLogin }: LoginProps) {
 
         <button
           type="submit"
-          className="mt-4 w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center gap-2 hover:bg-cranberry-dark active:scale-[0.98] transition-all"
+          disabled={loading}
+          className="mt-4 w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center gap-2 hover:bg-cranberry-dark active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Acessar Plataforma
-          <ArrowRight size={20} />
+          {loading ? 'Entrando...' : 'Acessar Plataforma'}
+          <ArrowRight size={20} className={loading ? 'animate-pulse' : ''} />
         </button>
       </form>
+
+      {errorMessage ? (
+        <p className="mt-4 text-sm font-medium text-red-400 text-center" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <div className="mt-8 relative flex items-center justify-center">
         <div className="absolute w-full h-[1px] bg-brand-border"></div>
@@ -82,6 +113,7 @@ export function Login({ onLogin }: LoginProps) {
 
       <button
         onClick={() => onLogin(true)}
+        disabled={loading}
         className="mt-8 w-full bg-transparent border border-brand-border text-text-main h-14 rounded-[12px] font-semibold text-[16px] hover:bg-brand-surface active:scale-[0.98] transition-all"
       >
         Acessar como Convidado
