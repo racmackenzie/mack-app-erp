@@ -1,23 +1,45 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, MessageSquare, Send, Link as LinkIcon, User } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
 
 interface Comentario {
   id: string;
-  autor: string;
-  foto: string;
-  data: string;
-  categoria: string;
-  texto: string;
+  created_at?: string | null;
+  data_comentario?: string | null;
+  comentario?: string | null;
+  texto?: string | null;
+  titulo?: string | null;
+  autor_id?: string | null;
+  autor_nome?: string | null;
+  associados?: {
+    nome_social: string | null;
+    nome_completo: string | null;
+    foto_url: string | null;
+  } | null;
+}
+
+interface AssociadoResumo {
+  id: string;
+  nome_social: string | null;
+  nome_completo: string | null;
+  foto_url: string | null;
 }
 
 interface Projeto {
-  id: number;
+  id: string | number;
   nome: string;
   avenida: string;
   status: string;
   marcoAtual: string;
   lider: string;
   detalhes: string;
+  lider_id?: string | null;
+  associados?: {
+    nome_social: string | null;
+    nome_completo: string | null;
+    foto_url: string | null;
+  } | null;
 }
 
 interface DetalhesProjetoProps {
@@ -33,48 +55,159 @@ export function DetalhesProjeto({
   isGuest = false,
   onGuestBlockedAction,
 }: DetalhesProjetoProps) {
-  const [comentarios, setComentarios] = useState<Comentario[]>([
-    {
-      id: '1',
-      autor: 'Ana Flávia',
-      foto: 'https://api.dicebear.com/7.x/notionists/svg?seed=Ana&backgroundColor=ffb2be',
-      data: 'Hoje, 14:30',
-      categoria: 'Decisão',
-      texto: 'Decidimos focar na arrecadação no prédio principal.',
-    },
-    {
-      id: '2',
-      autor: 'Carlos Eduardo',
-      foto: 'https://api.dicebear.com/7.x/notionists/svg?seed=Carlos&backgroundColor=d91b5c',
-      data: 'Ontem, 10:00',
-      categoria: 'Alinhamento',
-      texto: 'Alinhamento com a diretoria concluído. Precisamos de 3 voluntários.',
-    }
-  ]);
+  const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [novoComentario, setNovoComentario] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoadingComentarios, setIsLoadingComentarios] = useState(true);
 
-  const handleEnviarComentario = (e: React.FormEvent) => {
-    e.preventDefault();
+  const canComment = useMemo(() => !isGuest && Boolean(session?.user?.id), [isGuest, session]);
+  const nomeLiderProjeto =
+    projeto.associados?.nome_social || projeto.associados?.nome_completo || 'Liderança não definida';
 
-    if (isGuest) {
-      onGuestBlockedAction?.();
+  const fetchComentarios = useCallback(async () => {
+    setIsLoadingComentarios(true);
+
+    console.log('ID do projeto aberto:', projeto.id);
+
+    const { data, error } = await supabase
+      .from('comentarios_projetos')
+      .select('*, associados:autor_id (nome_social, nome_completo, foto_url)')
+      .eq('projeto_id', projeto.id)
+      .order('data_comentario', { ascending: true });
+
+    console.log('Comentários encontrados:', data);
+    console.log('Erro na busca de comentários:', error);
+
+    if (error) {
+      console.error('Erro ao buscar comentários do projeto:', error);
+      setComentarios([]);
+      setIsLoadingComentarios(false);
       return;
     }
 
-    if (!novoComentario.trim()) return;
+    const rows = (data ?? []) as Comentario[];
+    const missingAutorIds = Array.from(
+      new Set(rows.filter((item) => !item.associados?.foto_url && item.autor_id).map((item) => item.autor_id as string))
+    );
 
-    const comentario: Comentario = {
-      id: Date.now().toString(),
-      autor: 'Você', // mock current user
-      foto: 'https://api.dicebear.com/7.x/notionists/svg?seed=Joao&backgroundColor=ffb2be',
-      data: 'Agora',
-      categoria: 'Geral',
-      texto: novoComentario
+    if (missingAutorIds.length === 0) {
+      setComentarios(rows);
+      setIsLoadingComentarios(false);
+      return;
+    }
+
+    const { data: associadosRows, error: associadosError } = await supabase
+      .from('associados')
+      .select('id, nome_social, nome_completo, foto_url')
+      .in('id', missingAutorIds);
+
+    if (associadosError) {
+      console.error('Erro ao buscar fotos dos autores:', associadosError);
+      setComentarios(rows);
+      setIsLoadingComentarios(false);
+      return;
+    }
+
+    const associadosMap = new Map<string, AssociadoResumo>();
+    ((associadosRows ?? []) as AssociadoResumo[]).forEach((associado) => {
+      associadosMap.set(associado.id, associado);
+    });
+
+    const mergedComentarios = rows.map((item) => {
+      if (item.associados?.foto_url || !item.autor_id) {
+        return item;
+      }
+
+      const associado = associadosMap.get(item.autor_id);
+      if (!associado) {
+        return item;
+      }
+
+      return {
+        ...item,
+        associados: {
+          nome_social: associado.nome_social,
+          nome_completo: associado.nome_completo,
+          foto_url: associado.foto_url,
+        },
+      };
+    });
+
+    setComentarios(mergedComentarios);
+    setIsLoadingComentarios(false);
+  }, [projeto.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Erro ao recuperar sessão atual:', error);
+      }
+
+      if (isMounted) {
+        setSession(data.session ?? null);
+      }
     };
 
-    setComentarios([...comentarios, comentario]);
+    void loadSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    void fetchComentarios();
+  }, [fetchComentarios]);
+
+  const handleEnviarComentario = async (
+    e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+  ) => {
+    e?.preventDefault();
+
+    if (!novoComentario.trim()) return;
+    if (!session?.user?.id) return;
+    const projetoIdAtual = projeto.id;
+
+    const payload = {
+      projeto_id: projetoIdAtual,
+      autor_id: session?.user?.id,
+      comentario: novoComentario.trim(),
+      titulo: 'Atualização',
+    };
+
+    console.log('Enviando comentário:', payload);
+
+    const { error } = await supabase
+      .from('comentarios_projetos')
+      .insert([payload])
+      .select();
+
+    if (error) {
+      console.error('Erro no Supabase ao comentar:', error);
+      alert('Erro ao enviar comentário: ' + error.message);
+      return;
+    }
+
+    await fetchComentarios();
     setNovoComentario('');
   };
+
+  const getAuthorName = (item: Comentario) =>
+    item.associados?.nome_social || item.associados?.nome_completo || 'Associado';
+
+  const getAuthorAvatar = (item: Comentario) =>
+    item.associados?.foto_url ||
+    `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(getAuthorName(item))}&backgroundColor=ffb2be`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
@@ -107,10 +240,18 @@ export function DetalhesProjeto({
                   <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">
                     Líder do Projeto
                   </span>
-                  <button className="flex items-center gap-2 text-sm text-text-main hover:text-cranberry transition-colors font-medium">
-                    <User size={16} className="text-text-muted" />
-                    {projeto.lider}
-                  </button>
+                  <div className="flex items-center gap-2 text-sm text-text-main font-medium">
+                    {projeto.associados?.foto_url ? (
+                      <img
+                        src={projeto.associados.foto_url}
+                        alt={nomeLiderProjeto}
+                        className="w-6 h-6 rounded-full object-cover border border-brand-border"
+                      />
+                    ) : (
+                      <User size={16} className="text-text-muted" />
+                    )}
+                    {nomeLiderProjeto}
+                  </div>
                 </div>
                 
                 <div className="w-full h-px bg-brand-border"></div>
@@ -149,23 +290,43 @@ export function DetalhesProjeto({
             </h3>
 
             <div className="flex flex-col gap-3">
-              {comentarios.map(com => (
-                <div key={com.id} className="p-4 bg-brand-surface rounded-[12px] border border-brand-border flex gap-3">
-                  <img src={com.foto} alt={com.autor} className="w-10 h-10 rounded-full bg-brand-surface-raised border border-brand-border shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <div>
-                        <span className="font-semibold text-text-main text-sm mr-2">{com.autor}</span>
-                        <span className="text-[10px] text-text-muted">{com.data}</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-[4px] bg-brand-surface-raised border border-brand-border text-[9px] font-bold uppercase tracking-widest text-text-muted">
-                        {com.categoria}
-                      </span>
-                    </div>
-                    <p className="text-sm text-text-muted">{com.texto}</p>
-                  </div>
+              {isLoadingComentarios && (
+                <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
+                  <p className="text-sm text-text-muted">Carregando comentários...</p>
                 </div>
-              ))}
+              )}
+
+              {!isLoadingComentarios && comentarios.length === 0 && (
+                <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
+                  <p className="text-sm text-text-muted">Nenhum comentário ainda.</p>
+                </div>
+              )}
+
+              {!isLoadingComentarios &&
+                comentarios.map((item) => (
+                  <div key={item.id} className="p-4 bg-brand-surface rounded-[12px] border border-brand-border flex gap-3">
+                    <img
+                      src={getAuthorAvatar(item)}
+                      alt={getAuthorName(item)}
+                      className="w-10 h-10 rounded-full bg-brand-surface-raised border border-brand-border shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-text-main text-sm">
+                          {item.associados?.nome_social || item.associados?.nome_completo || 'Associado'}
+                        </span>
+                        <span className="text-[10px] text-text-muted">
+                          {item.data_comentario
+                            ? new Date(item.data_comentario).toLocaleDateString('pt-BR', {
+                                timeZone: 'America/Sao_Paulo',
+                              })
+                            : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm text-text-muted whitespace-pre-wrap">{item.comentario}</p>
+                    </div>
+                  </div>
+                ))}
             </div>
 
             {/* Input Comentário */}
@@ -175,28 +336,24 @@ export function DetalhesProjeto({
                 value={novoComentario}
                 onChange={(e) => setNovoComentario(e.target.value)}
                 onFocus={() => {
-                  if (isGuest) {
+                  if (!session?.user) {
                     onGuestBlockedAction?.();
                   }
                 }}
-                placeholder="Adicionar atualização ou ata..."
-                readOnly={isGuest}
+                placeholder={canComment ? 'Adicionar atualização ou ata...' : 'Faça login para comentar'}
+                disabled={!canComment}
                 className="flex-1 bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
               />
               <button 
                 type="submit"
-                onClick={() => {
-                  if (isGuest) {
-                    onGuestBlockedAction?.();
-                  }
-                }}
-                disabled={isGuest || !novoComentario.trim()}
+                onClick={handleEnviarComentario}
+                disabled={!canComment || !novoComentario.trim()}
                 className="w-12 h-12 shrink-0 bg-cranberry text-on-cranberry rounded-[12px] flex items-center justify-center disabled:opacity-50 transition-colors"
               >
                 <Send size={18} className="ml-1" />
               </button>
             </form>
-            {isGuest && (
+            {!canComment && (
               <p className="text-[12px] text-text-muted">
                 Convidados podem visualizar o histórico, mas não podem criar comentários.
               </p>

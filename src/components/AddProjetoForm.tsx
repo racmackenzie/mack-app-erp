@@ -1,23 +1,143 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface AddProjetoFormProps {
   onClose: () => void;
+  onCreated?: () => Promise<void> | void;
 }
 
-export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
-  const [nome, setNome] = useState('');
+type AssociadoOption = {
+  id: string;
+  nome_social: string | null;
+  nome_completo: string | null;
+};
+
+const getAssociateDisplayName = (associado: AssociadoOption): string => {
+  if (associado.nome_social && associado.nome_social.trim().length > 0) {
+    return associado.nome_social.trim();
+  }
+  if (associado.nome_completo && associado.nome_completo.trim().length > 0) {
+    return associado.nome_completo.trim();
+  }
+  return associado.id;
+};
+
+export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
+  const [nomeProjeto, setNomeProjeto] = useState('');
   const [avenida, setAvenida] = useState('');
+  const [liderId, setLiderId] = useState('');
   const [status, setStatus] = useState('');
   const [marcoAtual, setMarcoAtual] = useState('');
   const [detalhes, setDetalhes] = useState('');
-  const [link, setLink] = useState('');
+  const [linkGrupo, setLinkGrupo] = useState('');
+  const [associados, setAssociados] = useState<AssociadoOption[]>([]);
+  const [isLoadingAssociados, setIsLoadingAssociados] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAssociados = async () => {
+      try {
+        const [associadosResult, sessionResult] = await Promise.all([
+          supabase.from('associados').select('id, nome_social, nome_completo').order('nome_social', { ascending: true }),
+          supabase.auth.getSession(),
+        ]);
+
+        const { data, error } = associadosResult;
+        const sessionUserId = sessionResult.data.session?.user?.id ?? '';
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (error) {
+          console.error('Erro ao carregar associados para seleção de líder:', error);
+          setAssociados([]);
+          return;
+        }
+
+        setAssociados((data ?? []) as AssociadoOption[]);
+        if (sessionUserId) {
+          setLiderId((current) => current || sessionUserId);
+        }
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+        console.error('Falha inesperada ao buscar associados:', error);
+        setAssociados([]);
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+        setIsLoadingAssociados(false);
+      }
+    };
+
+    void loadAssociados();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const resetForm = () => {
+    setNomeProjeto('');
+    setAvenida('');
+    setLiderId('');
+    setStatus('');
+    setMarcoAtual('');
+    setDetalhes('');
+    setLinkGrupo('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate save
-    console.log({ nome, avenida, status, marcoAtual, detalhes, link });
-    onClose();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const payload = {
+        nome_projeto: nomeProjeto.trim(),
+        avenida: avenida,
+        status: status || 'Planejamento',
+        marco_atual: marcoAtual?.trim() || null,
+        detalhes: detalhes?.trim() || null,
+        link_grupo: linkGrupo?.trim() || null,
+        lider_id: liderId?.trim() || (session?.user?.id ?? null),
+      };
+
+      console.log('Payload enviando para projetos:', payload);
+
+      const { data, error } = await supabase.from('projetos').insert([payload]).select();
+
+      if (error) {
+        alert('Erro ao criar projeto: ' + error.message);
+        console.error(error);
+        return;
+      }
+
+      console.log('Projeto criado com sucesso:', data);
+      resetForm();
+      await onCreated?.();
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro inesperado ao criar projeto';
+      alert('Erro ao criar projeto: ' + message);
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const avenidas = [
@@ -52,8 +172,8 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
             </label>
             <input
               type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              value={nomeProjeto}
+              onChange={(e) => setNomeProjeto(e.target.value)}
               placeholder="Ex: Campanha do Agasalho"
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
               required
@@ -79,15 +199,35 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
+              Líder do Projeto
+            </label>
+            <select
+              value={liderId}
+              onChange={(e) => setLiderId(e.target.value)}
+              className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
+              disabled={isLoadingAssociados}
+            >
+              <option value="">
+                {isLoadingAssociados ? 'Carregando associados...' : 'Selecione um líder (opcional)'}
+              </option>
+              {associados.map((associado) => (
+                <option key={associado.id} value={associado.id}>
+                  {getAssociateDisplayName(associado)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
               Status
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
-              required
             >
-              <option value="" disabled>Selecione o Status</option>
+              <option value="">Selecione o Status (opcional)</option>
               {statusOptions.map(st => (
                 <option key={st} value={st}>{st}</option>
               ))}
@@ -104,7 +244,6 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
               onChange={(e) => setMarcoAtual(e.target.value)}
               placeholder="Ex: Arrecadação iniciada"
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
-              required
             />
           </div>
 
@@ -117,7 +256,6 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
               onChange={(e) => setDetalhes(e.target.value)}
               placeholder="Descreva o objetivo e detalhes do projeto..."
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] p-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all min-h-[100px] resize-none"
-              required
             />
           </div>
 
@@ -127,8 +265,8 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
             </label>
             <input
               type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
+              value={linkGrupo}
+              onChange={(e) => setLinkGrupo(e.target.value)}
               placeholder="https://chat.whatsapp.com/..."
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
             />
@@ -141,9 +279,10 @@ export function AddProjetoForm({ onClose }: AddProjetoFormProps) {
           <button
             type="submit"
             form="add-projeto-form"
+            disabled={isSubmitting}
             className="w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center hover:bg-cranberry-dark active:scale-[0.98] transition-all"
           >
-            Criar Projeto
+            {isSubmitting ? 'Criando...' : 'Criar Projeto'}
           </button>
         </div>
       </footer>
