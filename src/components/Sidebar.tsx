@@ -27,17 +27,6 @@ export function Sidebar({ currentRoute, navigate, handleLogout, isGuest = false,
           <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Copilot</p>
         </div>
       </div>
-      {isGuest && (
-        <div className="mx-4 mt-4 p-3 rounded-[12px] border border-brand-border bg-brand-surface-raised flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Modo Convidado</span>
-          <button
-            onClick={onGoToLogin}
-            className="h-9 rounded-[10px] bg-cranberry text-on-cranberry text-[11px] font-bold uppercase tracking-widest hover:bg-cranberry-dark transition-colors"
-          >
-            Fazer Login
-          </button>
-        </div>
-      )}
       <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
         {navItems.map((item) => {
           const isActive = currentRoute === item.id;
@@ -56,6 +45,17 @@ export function Sidebar({ currentRoute, navigate, handleLogout, isGuest = false,
           );
         })}
       </nav>
+
+      {isGuest && (
+        <div className="p-4 border-t border-brand-border">
+          <button
+            onClick={onGoToLogin}
+            className="w-full h-10 rounded-[10px] bg-cranberry text-on-cranberry text-[11px] font-bold uppercase tracking-widest hover:bg-cranberry-dark transition-colors"
+          >
+            Fazer Login
+          </button>
+        </div>
+      )}
 
       {!isGuest && (
         <div className="p-4 border-t border-brand-border">

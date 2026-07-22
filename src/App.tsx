@@ -307,19 +307,6 @@ export default function App() {
             onGoToLogin={handleGoToLoginFromGuest}
           />
           <div className="flex-1 overflow-y-auto relative w-full flex flex-col">
-            {isGuest && (
-              <div className="md:hidden px-4 pt-4">
-                <div className="rounded-[12px] border border-brand-border bg-brand-surface-raised p-3 flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">Modo Convidado</span>
-                  <button
-                    onClick={handleGoToLoginFromGuest}
-                    className="px-3 py-1.5 rounded-[8px] bg-cranberry text-on-cranberry text-[11px] font-bold uppercase tracking-widest hover:bg-cranberry-dark transition-colors"
-                  >
-                    Fazer Login
-                  </button>
-                </div>
-              </div>
-            )}
             {currentRoute === '/dashboard' && (
                 <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} isGuest={isGuest} />
             )}

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Search, Mail, Phone, ShieldAlert, User, Eye, EyeOff, Plus } from 'lucide-react';
-import { AddAssociadoForm } from '../components/AddAssociadoForm';
+import { Search, Mail, Phone, ShieldAlert, User } from 'lucide-react';
 import { DetalhesMembro } from '../components/DetalhesMembro';
 
 interface AssociadosProps {
@@ -8,11 +7,8 @@ interface AssociadosProps {
 }
 
 export function Associados({ initialIsGuest }: AssociadosProps) {
-  // Simulando a visão (para fins de prototipação da UI).
-  // No app real, isso viria do Context/Supabase Auth.
-  const [isGuestView, setIsGuestView] = useState(initialIsGuest);
+  const isGuestView = initialIsGuest;
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMembro, setSelectedMembro] = useState<any | null>(null);
 
   const membros = [
@@ -56,29 +52,10 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
 
   return (
     <div className="min-h-screen bg-brand-bg pb-24">
-      {/* Header com Toggle de Simulação (Apenas para MVP/Portfólio) */}
       <header className="px-4 pt-12 pb-4 bg-brand-surface-raised border-b border-brand-border sticky top-0 z-40">
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-text-main tracking-tight">Associados</h1>
-            
-            <div className="flex gap-2">
-              {/* Toggle de Permissão */}
-              <button 
-                onClick={() => setIsGuestView(!isGuestView)}
-                className="flex items-center gap-2 bg-brand-surface border border-brand-border px-3 py-1.5 rounded-[8px] active:scale-95 transition-all"
-              >
-                {isGuestView ? (
-                  <><EyeOff size={14} className="text-text-muted" /><span className="text-[10px] font-bold uppercase tracking-widest text-text-muted hidden sm:inline">Visão Convidado</span></>
-                ) : (
-                  <><Eye size={14} className="text-cranberry" /><span className="text-[10px] font-bold uppercase tracking-widest text-cranberry hidden sm:inline">Visão Membro</span></>
-                )}
-              </button>
-
-              <button onClick={() => setShowAddForm(true)} className="w-9 h-9 rounded-[8px] bg-cranberry flex items-center justify-center text-on-cranberry hover:bg-cranberry-dark transition-colors shrink-0">
-                <Plus size={18} />
-              </button>
-            </div>
           </div>
 
           <div className="relative">
@@ -142,7 +119,6 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
         )}
       </main>
 
-      {showAddForm && <AddAssociadoForm onClose={() => setShowAddForm(false)} />}
       {selectedMembro && <DetalhesMembro membro={selectedMembro} isGuestView={isGuestView} onClose={() => setSelectedMembro(null)} />}
     </div>
   );
