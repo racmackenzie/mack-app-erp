@@ -1,24 +1,67 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface AddEventoFormProps {
   onClose: () => void;
+  onSaved: () => Promise<void> | void;
 }
 
-export function AddEventoForm({ onClose }: AddEventoFormProps) {
+export function AddEventoForm({ onClose, onSaved }: AddEventoFormProps) {
   const [titulo, setTitulo] = useState('');
   const [dataHora, setDataHora] = useState('');
   const [referente, setReferente] = useState('');
-  const [projetoId, setProjetoId] = useState('');
-  const [link, setLink] = useState('');
+  const [projetoId, setProjetoId] = useState('nenhum');
+  const [localOuLink, setLocalOuLink] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log({ titulo, dataHora, referente, projetoId, link });
-    onClose();
+
+    const referenteA = referente;
+    const local = localOuLink;
+    const dataHoraInput = dataHora;
+    const dataHoraComSegundos = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(dataHoraInput)
+      ? dataHoraInput
+      : `${dataHoraInput}:00`;
+    const dataHoraComOffset = /(?:Z|[+-]\d{2}:\d{2})$/i.test(dataHoraComSegundos)
+      ? dataHoraComSegundos
+      : `${dataHoraComSegundos}-03:00`;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+
+    const payload = {
+      titulo: titulo,
+      data_hora: dataHoraComOffset,
+      referente_a: referenteA,
+      local: local || null,
+      projeto_id: projetoId === 'nenhum' ? null : projetoId,
+      criado_por: session?.user?.id,
+      organizador_id: session?.user?.id,
+    };
+
+    const { data, error } = await supabase
+      .from('calendario_reunioes')
+      .insert([payload])
+      .select();
+
+    if (error) {
+      alert('Erro ao salvar compromisso: ' + error.message);
+      return;
+    }
+
+    if (data) {
+      setTitulo('');
+      setDataHora('');
+      setReferente('');
+      setProjetoId('nenhum');
+      setLocalOuLink('');
+      onClose();
+      await onSaved();
+    }
   };
 
-  const referentes = ['Clube', 'Distrito 4563', 'Rotaract Brasil'];
+  const referentes = ['CLUBE', 'DISTRITO', 'ROTARACT BRASIL'];
   const projetosExemplo = [
     { id: '1', nome: 'Campanha do Agasalho' },
     { id: '2', nome: 'Mentoria Profissional' }
@@ -90,7 +133,7 @@ export function AddEventoForm({ onClose }: AddEventoFormProps) {
               onChange={(e) => setProjetoId(e.target.value)}
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
             >
-              <option value="">Nenhum projeto (Avulso)</option>
+              <option value="nenhum">Nenhum projeto (Avulso)</option>
               {projetosExemplo.map(proj => (
                 <option key={proj.id} value={proj.id}>{proj.nome}</option>
               ))}
@@ -99,13 +142,13 @@ export function AddEventoForm({ onClose }: AddEventoFormProps) {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
-              Link da Reunião (Meet/Zoom)
+              Local ou Link
             </label>
             <input
-              type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="https://meet.google.com/..."
+              type="text"
+              value={localOuLink}
+              onChange={(e) => setLocalOuLink(e.target.value)}
+              placeholder="Ex: Sede do Clube, Sala 302 ou https://meet.google.com/..."
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
             />
           </div>

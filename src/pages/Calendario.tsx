@@ -1,49 +1,95 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Calendar as CalendarIcon, Clock, MapPin, Video, Plus } from 'lucide-react';
 import { AddEventoForm } from '../components/AddEventoForm';
 import { DetalhesEvento } from '../components/DetalhesEvento';
+import { supabase } from '../lib/supabaseClient';
+
+const BRAZIL_TIME_ZONE = 'America/Sao_Paulo';
+
+type CalendarioReuniao = {
+  id: string;
+  titulo: string;
+  data_hora: string;
+  referente_a: string | null;
+  projeto_id: string | null;
+  local: string | null;
+  associados?: {
+    nome_social: string | null;
+    nome_completo: string | null;
+  } | null;
+};
+
+type EventoCard = {
+  id: string;
+  titulo: string;
+  dia: string;
+  mes: string;
+  hora: string;
+  referente: string;
+  formato: string;
+  local: string;
+  associados?: {
+    nome_social: string | null;
+    nome_completo: string | null;
+  } | null;
+  projetoVinculado?: string;
+};
 
 export function Calendario() {
   const [filtroAtivo, setFiltroAtivo] = useState('Todos');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedEvento, setSelectedEvento] = useState<any | null>(null);
+  const [selectedEvento, setSelectedEvento] = useState<EventoCard | null>(null);
+  const [eventos, setEventos] = useState<EventoCard[]>([]);
 
-  const filtros = ['Todos', 'Clube', 'Distrito 4563', 'Rotaract Brasil'];
+  const fetchEvents = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('calendario_reunioes')
+      .select('*, associados:organizador_id (nome_social, nome_completo)')
+      .order('data_hora', { ascending: true });
 
-  const eventos = [
-    {
-      id: 1,
-      titulo: 'Reunião Ordinária Semanal',
-      dia: '15',
-      mes: 'Ago',
-      hora: '19:30',
-      referente: 'Clube',
-      formato: 'Online',
-      local: 'Google Meet',
-    },
-    {
-      id: 2,
-      titulo: 'Visita Oficial do Governador (VOG)',
-      dia: '28',
-      mes: 'Ago',
-      hora: '20:00',
-      referente: 'Distrito 4563',
-      formato: 'Presencial',
-      local: 'Sede do Rotary Club',
-      projetoVinculado: 'Mentoria Carreira Mackenzista',
-    },
-    {
-      id: 3,
-      titulo: 'End Polio Now - Ação Conjunta',
-      dia: '24',
-      mes: 'Out',
-      hora: '09:00',
-      referente: 'Rotaract Brasil',
-      formato: 'Presencial',
-      local: 'Parque Ibirapuera',
-      organizador: 'Comissão Rotaract Brasil'
-    },
-  ];
+    if (error) {
+      console.error('Erro ao carregar compromissos:', error);
+      return;
+    }
+
+    const eventosDaTabela = (data ?? []).map((evento: CalendarioReuniao) => {
+      const dataEvento = new Date(evento.data_hora);
+      const dataValida = !Number.isNaN(dataEvento.getTime());
+
+      return {
+        id: evento.id,
+        titulo: evento.titulo,
+        dia: dataValida
+          ? dataEvento.toLocaleDateString('pt-BR', { day: '2-digit', timeZone: BRAZIL_TIME_ZONE })
+          : '--',
+        mes: dataValida
+          ? dataEvento
+              .toLocaleString('pt-BR', { month: 'short', timeZone: BRAZIL_TIME_ZONE })
+              .replace('.', '')
+          : '--',
+        hora: dataValida
+          ? dataEvento.toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: BRAZIL_TIME_ZONE,
+            })
+          : '--:--',
+        referente: evento.referente_a ?? 'CLUBE',
+        formato: evento.local?.toLowerCase().startsWith('http') ? 'Online' : 'Presencial',
+        local: evento.local ?? 'Local a definir',
+        associados: evento.associados,
+        projetoVinculado: evento.projeto_id ? `Projeto ${evento.projeto_id}` : undefined,
+      };
+    });
+
+    setEventos(eventosDaTabela);
+  }, []);
+
+  useEffect(() => {
+    void fetchEvents();
+  }, [fetchEvents]);
+
+  const filtros = ['Todos', ...Array.from(new Set(eventos.map((evento) => evento.referente)))];
 
   const eventosFiltrados = filtroAtivo === 'Todos' 
     ? eventos 
@@ -87,13 +133,14 @@ export function Calendario() {
 
       <main className="px-4 py-6 max-w-md md:max-w-7xl md:px-12 mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start">
         {eventosFiltrados.map((evento) => (
+          
           <div 
             key={evento.id} 
             className="bg-brand-surface border border-brand-border rounded-[12px] p-4 flex gap-4 relative overflow-hidden group cursor-pointer hover:border-cranberry hover:ring-1 hover:ring-cranberry active:scale-[0.98] transition-all"
             onClick={() => setSelectedEvento(evento)}
           >
             {/* Indicador de cor referente */}
-            <div className={`absolute left-0 top-0 bottom-0 w-1 ${evento.referente === 'Clube' ? 'bg-cranberry' : evento.referente === 'Distrito 4563' ? 'bg-rotary-yellow' : 'bg-brand-border'}`}></div>
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${evento.referente.toUpperCase() === 'CLUBE' ? 'bg-cranberry' : evento.referente.toUpperCase().includes('DISTRITO') ? 'bg-rotary-yellow' : 'bg-brand-border'}`}></div>
             
             {/* Data Block */}
             <div className="flex flex-col items-center justify-center w-14 shrink-0">
@@ -139,7 +186,7 @@ export function Calendario() {
         )}
       </main>
 
-      {showAddForm && <AddEventoForm onClose={() => setShowAddForm(false)} />}
+      {showAddForm && <AddEventoForm onClose={() => setShowAddForm(false)} onSaved={fetchEvents} />}
       {selectedEvento && <DetalhesEvento evento={selectedEvento} onClose={() => setSelectedEvento(null)} />}
     </div>
   );

@@ -1,7 +1,7 @@
 import { ArrowLeft, Clock, MapPin, Video, User, Briefcase } from 'lucide-react';
 
-interface Evento {
-  id: number;
+export interface EventoDetalhes {
+  id: string;
   titulo: string;
   dia: string;
   mes: string;
@@ -9,17 +9,23 @@ interface Evento {
   referente: string;
   formato: string;
   local: string;
+  associados?: {
+    nome_social: string | null;
+    nome_completo: string | null;
+  } | null;
   projetoVinculado?: string;
   organizador?: string;
 }
 
 interface DetalhesEventoProps {
-  evento: Evento;
+  evento: EventoDetalhes;
   onClose: () => void;
 }
 
 export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
   const isRotary = evento.referente === 'Distrito 4563';
+  const localNormalizado = evento.local.trim().toLowerCase();
+  const isOnline = localNormalizado.startsWith('http');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
@@ -64,11 +70,11 @@ export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
 
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-brand-surface-raised flex items-center justify-center text-text-muted shrink-0">
-                {evento.formato === 'Online' ? <Video size={20} /> : <MapPin size={20} />}
+                {isOnline ? <Video size={20} /> : <MapPin size={20} />}
               </div>
               <div>
                 <p className="text-sm font-semibold text-text-main">{evento.local}</p>
-                <p className="text-[12px] text-text-muted">{evento.formato}</p>
+                <p className="text-[12px] text-text-muted">{isOnline ? 'Online' : 'Presencial'}</p>
               </div>
             </div>
           </div>
@@ -95,21 +101,28 @@ export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
               </span>
               <div className="flex items-center gap-2 text-sm text-text-main font-medium">
                 <User size={16} className="text-text-muted" />
-                {evento.organizador || 'Diretoria do Clube'}
+                {evento.associados?.nome_social || evento.associados?.nome_completo || 'Diretoria do Clube'}
               </div>
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4 bg-brand-surface border-t border-brand-border shrink-0 mt-auto">
-        <div className="max-w-md mx-auto">
-          <button className="w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center gap-2 hover:bg-cranberry-dark active:scale-[0.98] transition-all">
-            {evento.formato === 'Online' ? <Video size={20} /> : <MapPin size={20} />}
-            {evento.formato === 'Online' ? 'Entrar na Reunião' : 'Ver no Mapa'}
-          </button>
-        </div>
-      </footer>
+      {isOnline ? (
+        <footer className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4 bg-brand-surface border-t border-brand-border shrink-0 mt-auto">
+          <div className="max-w-md mx-auto">
+            <a
+              href={evento.local}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center gap-2 hover:bg-cranberry-dark active:scale-[0.98] transition-all"
+            >
+              <Video size={20} />
+              Acessar Reunião Online
+            </a>
+          </div>
+        </footer>
+      ) : null}
       </div>
     </div>
   );

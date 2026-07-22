@@ -165,7 +165,10 @@ export default function App() {
   };
 
   const handleOnboardingSubmit = async (values: AssociadoFormValues) => {
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    console.log('User ID da sessão:', userId);
+
+    if (!userId) {
       throw new Error('Não foi possível identificar o usuário logado.');
     }
 
@@ -177,28 +180,45 @@ export default function App() {
     const sobreMim = values.sobre;
     const fotoUrl = values.fotoUrl;
 
-    const { data, error } = await supabase
+    if (isBlank(nomeCompleto) || isBlank(nomeSocial) || isBlank(telefone)) {
+      alert('Preencha nome completo, nome social e telefone antes de continuar.');
+      throw new Error('Dados obrigatórios ausentes para envio ao Supabase.');
+    }
+
+    const payload = {
+      nome_completo: nomeCompleto,
+      nome_social: nomeSocial,
+      telefone: telefone,
+      cargo: cargo,
+      profissao: profissao,
+      sobre_mim: sobreMim,
+      foto_url: fotoUrl,
+    };
+    console.log('Payload sendo enviado:', payload);
+
+    let { data, error } = await supabase
       .from('associados')
-      .update({
-        nome_completo: nomeCompleto,
-        nome_social: nomeSocial,
-        telefone: telefone,
-        cargo: cargo,
-        profissao: profissao,
-        sobre_mim: sobreMim,
-        foto_url: fotoUrl,
-      })
-      .eq('id', session.user.id)
-      .select('id, foto_url, nome_completo, nome_social, email, telefone, cargo, profissao, sobre_mim');
+      .update(payload)
+      .eq('id', userId)
+      .select();
+
+    if (!error && (!data || data.length === 0)) {
+      const insertResult = await supabase
+        .from('associados')
+        .insert([{ id: userId, email: session.user.email, ...payload }])
+        .select();
+
+      data = insertResult.data;
+      error = insertResult.error;
+    }
 
     if (error) {
       console.error('Erro completo do Supabase:', error);
-      alert('Erro ao salvar no banco: ' + error.message);
+      alert('Erro RLS: ' + error.message);
       throw new Error(error.message);
-    } else {
-      console.log('Dados salvos com sucesso!', data);
-      alert('Perfil atualizado com sucesso no banco!');
     }
+
+    console.log('Dados gravados:', data);
 
     setCurrentAssociate(data?.[0] ?? null);
     setNeedsOnboarding(false);
@@ -264,7 +284,9 @@ export default function App() {
         <>
           <Sidebar currentRoute={currentRoute} navigate={navigate} handleLogout={handleLogout} />
           <div className="flex-1 overflow-y-auto relative w-full flex flex-col">
-            {currentRoute === '/dashboard' && <Dashboard />}
+            {currentRoute === '/dashboard' && (
+              <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} />
+            )}
             {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} />}
             {currentRoute === '/projetos' && <Projetos />}
             {currentRoute === '/calendario' && <Calendario />}
