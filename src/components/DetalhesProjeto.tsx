@@ -23,9 +23,16 @@ interface Projeto {
 interface DetalhesProjetoProps {
   projeto: Projeto;
   onClose: () => void;
+  isGuest?: boolean;
+  onGuestBlockedAction?: () => void;
 }
 
-export function DetalhesProjeto({ projeto, onClose }: DetalhesProjetoProps) {
+export function DetalhesProjeto({
+  projeto,
+  onClose,
+  isGuest = false,
+  onGuestBlockedAction,
+}: DetalhesProjetoProps) {
   const [comentarios, setComentarios] = useState<Comentario[]>([
     {
       id: '1',
@@ -48,6 +55,12 @@ export function DetalhesProjeto({ projeto, onClose }: DetalhesProjetoProps) {
 
   const handleEnviarComentario = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isGuest) {
+      onGuestBlockedAction?.();
+      return;
+    }
+
     if (!novoComentario.trim()) return;
 
     const comentario: Comentario = {
@@ -161,17 +174,33 @@ export function DetalhesProjeto({ projeto, onClose }: DetalhesProjetoProps) {
                 type="text"
                 value={novoComentario}
                 onChange={(e) => setNovoComentario(e.target.value)}
+                onFocus={() => {
+                  if (isGuest) {
+                    onGuestBlockedAction?.();
+                  }
+                }}
                 placeholder="Adicionar atualização ou ata..."
+                readOnly={isGuest}
                 className="flex-1 bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
               />
               <button 
                 type="submit"
-                disabled={!novoComentario.trim()}
+                onClick={() => {
+                  if (isGuest) {
+                    onGuestBlockedAction?.();
+                  }
+                }}
+                disabled={isGuest || !novoComentario.trim()}
                 className="w-12 h-12 shrink-0 bg-cranberry text-on-cranberry rounded-[12px] flex items-center justify-center disabled:opacity-50 transition-colors"
               >
                 <Send size={18} className="ml-1" />
               </button>
             </form>
+            {isGuest && (
+              <p className="text-[12px] text-text-muted">
+                Convidados podem visualizar o histórico, mas não podem criar comentários.
+              </p>
+            )}
           </section>
         </div>
       </main>

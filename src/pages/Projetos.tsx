@@ -3,7 +3,12 @@ import { Filter, Star, CirclePlay, ChevronRight, Plus } from 'lucide-react';
 import { AddProjetoForm } from '../components/AddProjetoForm';
 import { DetalhesProjeto } from '../components/DetalhesProjeto';
 
-export function Projetos() {
+interface ProjetosProps {
+  isGuest?: boolean;
+  onGuestBlockedAction?: () => void;
+}
+
+export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProps) {
   const [selectedAvenida, setSelectedAvenida] = useState<string>('Todas');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProjeto, setSelectedProjeto] = useState<any | null>(null);
@@ -50,6 +55,15 @@ export function Projetos() {
     ? projetos 
     : projetos.filter(p => p.avenida === selectedAvenida);
 
+  const handleOpenAddProject = () => {
+    if (isGuest) {
+      onGuestBlockedAction?.();
+      return;
+    }
+
+    setShowAddForm(true);
+  };
+
   return (
     <div className="min-h-screen bg-brand-bg pb-24">
       {/* Header */}
@@ -61,7 +75,15 @@ export function Projetos() {
               <button className="w-10 h-10 rounded-[12px] bg-brand-surface border border-brand-border flex items-center justify-center text-text-muted hover:text-text-main transition-colors">
                 <Filter size={18} />
               </button>
-              <button onClick={() => setShowAddForm(true)} className="w-10 h-10 rounded-[12px] bg-cranberry flex items-center justify-center text-on-cranberry hover:bg-cranberry-dark transition-colors">
+              <button
+                onClick={handleOpenAddProject}
+                className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${
+                  isGuest
+                    ? 'bg-brand-surface border border-brand-border text-text-muted'
+                    : 'bg-cranberry text-on-cranberry hover:bg-cranberry-dark'
+                }`}
+                aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo projeto'}
+              >
                 <Plus size={18} />
               </button>
             </div>
@@ -128,8 +150,15 @@ export function Projetos() {
         )}
       </main>
 
-      {showAddForm && <AddProjetoForm onClose={() => setShowAddForm(false)} />}
-      {selectedProjeto && <DetalhesProjeto projeto={selectedProjeto} onClose={() => setSelectedProjeto(null)} />}
+      {showAddForm && !isGuest && <AddProjetoForm onClose={() => setShowAddForm(false)} />}
+      {selectedProjeto && (
+        <DetalhesProjeto
+          projeto={selectedProjeto}
+          onClose={() => setSelectedProjeto(null)}
+          isGuest={isGuest}
+          onGuestBlockedAction={onGuestBlockedAction}
+        />
+      )}
     </div>
   );
 }

@@ -123,6 +123,7 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
       const today = new Date();
 
       try {
+        // Public read: convidados e usuários logados carregam os mesmos compromissos.
         const [{ data: compromissosRaw, error: compromissosError }, { data: projetosRaw, error: projetosError }] =
           await Promise.all([
             supabase

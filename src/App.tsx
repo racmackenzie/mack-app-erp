@@ -14,6 +14,9 @@ import { BottomNav } from './components/BottomNav';
 import { AddAssociadoForm, type AssociadoFormValues } from './components/AddAssociadoForm';
 import { supabase } from './lib/supabaseClient';
 
+const GUEST_ACTION_MESSAGE =
+  'Você está navegando como convidado. Faça login como associado para realizar esta ação.';
+
 interface AssociateRecord {
   id: string;
   foto_url: string | null;
@@ -43,7 +46,7 @@ type AssociateProfile = {
 };
 
 export default function App() {
-  const [currentRoute, setCurrentRoute] = useState<string>('/login');
+  const [currentRoute, setCurrentRoute] = useState<string>('/dashboard');
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -51,6 +54,10 @@ export default function App() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+
+  const showGuestRestrictedActionAlert = () => {
+    alert(GUEST_ACTION_MESSAGE);
+  };
 
   const loadCurrentAssociate = async (userId: string) => {
     try {
@@ -109,8 +116,8 @@ export default function App() {
       setCurrentAssociate(null);
       setUserRole(null);
       setNeedsOnboarding(false);
-      setIsGuest(false);
-      setCurrentRoute('/login');
+      setIsGuest(true);
+      setCurrentRoute('/dashboard');
       setProfileLoading(false);
     };
 
@@ -121,8 +128,8 @@ export default function App() {
         setCurrentAssociate(null);
         setUserRole(null);
         setNeedsOnboarding(false);
-        setIsGuest(false);
-        setCurrentRoute('/login');
+        setIsGuest(true);
+        setCurrentRoute('/dashboard');
         setProfileLoading(false);
         return;
       }
@@ -159,12 +166,17 @@ export default function App() {
     setCurrentAssociate(null);
     setCurrentUserId(null);
     setNeedsOnboarding(false);
-    setIsGuest(false);
-    setCurrentRoute('/login');
+    setIsGuest(true);
+    setCurrentRoute('/dashboard');
     setProfileLoading(false);
   };
 
   const handleOnboardingSubmit = async (values: AssociadoFormValues) => {
+    if (isGuest) {
+      alert('Convidados não possuem perfil editável. Faça login para continuar.');
+      throw new Error('Convidados não podem editar perfil.');
+    }
+
     const userId = session?.user?.id;
     console.log('User ID da sessão:', userId);
 
@@ -253,6 +265,11 @@ export default function App() {
     setCurrentRoute(route);
   };
 
+  const handleGoToLoginFromGuest = () => {
+    setIsGuest(false);
+    setCurrentRoute('/login');
+  };
+
   if (!session && !isGuest) {
     return (
       <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry flex h-screen overflow-hidden">
@@ -282,14 +299,43 @@ export default function App() {
         </div>
       ) : (
         <>
-          <Sidebar currentRoute={currentRoute} navigate={navigate} handleLogout={handleLogout} />
+          <Sidebar
+            currentRoute={currentRoute}
+            navigate={navigate}
+            handleLogout={handleLogout}
+            isGuest={isGuest}
+            onGoToLogin={handleGoToLoginFromGuest}
+          />
           <div className="flex-1 overflow-y-auto relative w-full flex flex-col">
+            {isGuest && (
+              <div className="md:hidden px-4 pt-4">
+                <div className="rounded-[12px] border border-brand-border bg-brand-surface-raised p-3 flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">Modo Convidado</span>
+                  <button
+                    onClick={handleGoToLoginFromGuest}
+                    className="px-3 py-1.5 rounded-[8px] bg-cranberry text-on-cranberry text-[11px] font-bold uppercase tracking-widest hover:bg-cranberry-dark transition-colors"
+                  >
+                    Fazer Login
+                  </button>
+                </div>
+              </div>
+            )}
             {currentRoute === '/dashboard' && (
               <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} />
             )}
             {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} />}
-            {currentRoute === '/projetos' && <Projetos />}
-            {currentRoute === '/calendario' && <Calendario />}
+            {currentRoute === '/projetos' && (
+              <Projetos
+                isGuest={isGuest}
+                onGuestBlockedAction={showGuestRestrictedActionAlert}
+              />
+            )}
+            {currentRoute === '/calendario' && (
+              <Calendario
+                isGuest={isGuest}
+                onGuestBlockedAction={showGuestRestrictedActionAlert}
+              />
+            )}
             
             <BottomNav currentRoute={currentRoute} navigate={navigate} />
           </div>

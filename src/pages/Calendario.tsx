@@ -35,13 +35,19 @@ type EventoCard = {
   projetoVinculado?: string;
 };
 
-export function Calendario() {
+interface CalendarioProps {
+  isGuest?: boolean;
+  onGuestBlockedAction?: () => void;
+}
+
+export function Calendario({ isGuest = false, onGuestBlockedAction }: CalendarioProps) {
   const [filtroAtivo, setFiltroAtivo] = useState('Todos');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedEvento, setSelectedEvento] = useState<EventoCard | null>(null);
   const [eventos, setEventos] = useState<EventoCard[]>([]);
 
   const fetchEvents = useCallback(async () => {
+    // Leitura pública: a agenda deve carregar para visitantes logados e convidados.
     const { data, error } = await supabase
       .from('calendario_reunioes')
       .select('*, associados:organizador_id (nome_social, nome_completo)')
@@ -95,6 +101,15 @@ export function Calendario() {
     ? eventos 
     : eventos.filter(e => e.referente === filtroAtivo);
 
+  const handleOpenAddForm = () => {
+    if (isGuest) {
+      onGuestBlockedAction?.();
+      return;
+    }
+
+    setShowAddForm(true);
+  };
+
   return (
     <div className="min-h-screen bg-brand-bg pb-24">
       {/* Header */}
@@ -106,7 +121,15 @@ export function Calendario() {
               <div className="w-10 h-10 rounded-[12px] bg-brand-surface border border-brand-border flex items-center justify-center text-cranberry">
                 <CalendarIcon size={20} />
               </div>
-              <button onClick={() => setShowAddForm(true)} className="w-10 h-10 rounded-[12px] bg-cranberry flex items-center justify-center text-on-cranberry hover:bg-cranberry-dark transition-colors">
+              <button
+                onClick={handleOpenAddForm}
+                className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${
+                  isGuest
+                    ? 'bg-brand-surface border border-brand-border text-text-muted'
+                    : 'bg-cranberry text-on-cranberry hover:bg-cranberry-dark'
+                }`}
+                aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo compromisso'}
+              >
                 <Plus size={18} />
               </button>
             </div>
@@ -186,7 +209,7 @@ export function Calendario() {
         )}
       </main>
 
-      {showAddForm && <AddEventoForm onClose={() => setShowAddForm(false)} onSaved={fetchEvents} />}
+      {showAddForm && !isGuest && <AddEventoForm onClose={() => setShowAddForm(false)} onSaved={fetchEvents} />}
       {selectedEvento && <DetalhesEvento evento={selectedEvento} onClose={() => setSelectedEvento(null)} />}
     </div>
   );
