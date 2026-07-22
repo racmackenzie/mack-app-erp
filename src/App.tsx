@@ -321,7 +321,7 @@ export default function App() {
               </div>
             )}
             {currentRoute === '/dashboard' && (
-              <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} />
+                <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} isGuest={isGuest} />
             )}
             {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} />}
             {currentRoute === '/projetos' && (

@@ -57,15 +57,17 @@ export function Sidebar({ currentRoute, navigate, handleLogout, isGuest = false,
         })}
       </nav>
 
-      <div className="p-4 border-t border-brand-border">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-[12px] font-medium transition-colors w-full text-text-muted hover:bg-brand-surface-raised hover:text-text-main"
-        >
-          <LogOut size={20} />
-          Sair
-        </button>
-      </div>
+      {!isGuest && (
+        <div className="p-4 border-t border-brand-border">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-3 rounded-[12px] font-medium transition-colors w-full text-text-muted hover:bg-brand-surface-raised hover:text-text-main"
+          >
+            <LogOut size={20} />
+            Sair
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

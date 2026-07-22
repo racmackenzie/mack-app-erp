@@ -6,6 +6,7 @@ export interface EventoDetalhes {
   dia: string;
   mes: string;
   hora: string;
+  dataHoraFormatada?: string;
   referente: string;
   formato: string;
   local: string;
@@ -60,7 +61,7 @@ export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-text-main">
-                  {evento.dia} de {evento.mes}, às {evento.hora}
+                  {evento.dataHoraFormatada || `${evento.dia} de ${evento.mes}, às ${evento.hora}`}
                 </p>
                 <p className="text-[12px] text-text-muted">Horário de Brasília</p>
               </div>
@@ -101,7 +102,7 @@ export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
               </span>
               <div className="flex items-center gap-2 text-sm text-text-main font-medium">
                 <User size={16} className="text-text-muted" />
-                {evento.associados?.nome_social || evento.associados?.nome_completo || 'Diretoria do Clube'}
+                {evento.associados?.nome_social || evento.associados?.nome_completo || evento.organizador || 'Diretoria do Clube'}
               </div>
             </div>
           </div>

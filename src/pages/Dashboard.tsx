@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, ChevronRight, CirclePlay, Star } from 'lucide-react';
 import { DetalhesEvento, type EventoDetalhes } from '../components/DetalhesEvento';
+import { extrairDataLocalISO, formatarDataLocal, formatarPartesDataLocal } from '../lib/dateTime';
 import { supabase } from '../lib/supabaseClient';
-
-const BRAZIL_TIME_ZONE = 'America/Sao_Paulo';
 
 type AssociateIdentity = {
   nome_social?: string | null;
@@ -14,6 +13,7 @@ type AssociateIdentity = {
 interface DashboardProps {
   currentAssociate?: AssociateIdentity | null;
   onNavigate?: (route: string) => void;
+  isGuest?: boolean;
 }
 
 type Compromisso = {
@@ -32,6 +32,12 @@ type ProjetoDestaque = {
   status: string;
 };
 
+type OrganizerLookup = {
+  id: string;
+  nome_social: string | null;
+  nome_completo: string | null;
+};
+
 const isBlank = (value: unknown): value is '' | null | undefined =>
   typeof value !== 'string' || value.trim().length === 0;
 
@@ -45,51 +51,19 @@ const pickFirstString = (source: Record<string, unknown>, keys: string[], fallba
   return fallback;
 };
 
-const toDate = (value: unknown): Date | null => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return null;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
+const formatCompromissoDate = (isoString: string): string => {
+  return formatarDataLocal(isoString) || 'Data a definir';
 };
 
-const toSaoPauloDateKey = (date: Date): string =>
-  date.toLocaleDateString('en-CA', { timeZone: BRAZIL_TIME_ZONE });
-
-const formatCompromissoDate = (date: Date | null): string => {
-  if (!date) {
-    return 'Data a definir';
-  }
-
-  const now = new Date();
-  const isToday = toSaoPauloDateKey(now) === toSaoPauloDateKey(date);
-
-  const hour = date.toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: BRAZIL_TIME_ZONE,
-  });
-
-  if (isToday) {
-    return `Hoje, ${hour}`;
-  }
-
-  const dayLabel = date.toLocaleDateString('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    timeZone: BRAZIL_TIME_ZONE,
-  });
-
-  return `${dayLabel}, ${hour}`;
+const hojeISO = () => {
+  const hoje = new Date();
+  const ano = String(hoje.getFullYear());
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 };
 
-export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
+export function Dashboard({ currentAssociate, onNavigate, isGuest = false }: DashboardProps) {
   const [proximosCompromissos, setProximosCompromissos] = useState<Compromisso[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventoDetalhes | null>(null);
   const [projetosDestaque, setProjetosDestaque] = useState<ProjetoDestaque[]>([]);
@@ -120,7 +94,7 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
     let isMounted = true;
 
     const loadDashboardData = async () => {
-      const today = new Date();
+      const todayIso = hojeISO();
 
       try {
         // Public read: convidados e usuários logados carregam os mesmos compromissos.
@@ -149,27 +123,46 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
           console.error('Erro ao buscar próximos compromissos:', compromissosError);
           setProximosCompromissos([]);
         } else {
+          const compromissoRows = (compromissosRaw ?? []) as Array<Record<string, unknown>>;
+          const organizerIds = Array.from(
+            new Set(
+              compromissoRows
+                .map((row) => row.organizador_id)
+                .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+            )
+          );
+
+          const organizerLookup = new Map<string, OrganizerLookup>();
+
+          if (organizerIds.length > 0) {
+            const { data: organizerRows, error: organizerError } = await supabase
+              .from('associados')
+              .select('id, nome_social, nome_completo')
+              .in('id', organizerIds);
+
+            if (organizerError) {
+              console.error('Erro ao carregar organizadores do dashboard:', organizerError);
+            } else {
+              (organizerRows ?? []).forEach((organizer) => {
+                organizerLookup.set(String(organizer.id), {
+                  id: String(organizer.id),
+                  nome_social: organizer.nome_social ?? null,
+                  nome_completo: organizer.nome_completo ?? null,
+                });
+              });
+            }
+          }
+
           const parsedCompromissos = (compromissosRaw ?? []).map((row: Record<string, unknown>, index) => {
-            const date = toDate(row.data_hora ?? row.data ?? row.data_reuniao ?? row.data_inicio ?? row.created_at);
+            const dataHoraRaw = String(row.data_hora ?? row.data ?? row.data_reuniao ?? row.data_inicio ?? row.created_at ?? '');
             const local = pickFirstString(
               row,
               ['local', 'link_meet', 'endereco', 'endereço', 'sala'],
               'Local a definir'
             );
             const formato = local.toLowerCase().startsWith('http') ? 'Online' : 'Presencial';
-            const dia = date
-              ? date.toLocaleDateString('pt-BR', { day: '2-digit', timeZone: BRAZIL_TIME_ZONE })
-              : '--';
-            const mes = date
-              ? date.toLocaleString('pt-BR', { month: 'short', timeZone: BRAZIL_TIME_ZONE }).replace('.', '')
-              : '--';
-            const hora = date
-              ? date.toLocaleTimeString('pt-BR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  timeZone: BRAZIL_TIME_ZONE,
-                })
-              : '--:--';
+            const { dia, mes, hora } = formatarPartesDataLocal(dataHoraRaw);
+            const dataHoraFormatada = formatarDataLocal(dataHoraRaw);
             const referente = pickFirstString(
               row,
               ['referente_a', 'tipo', 'referente', 'categoria', 'origem'],
@@ -180,18 +173,26 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
               ['organizador', 'organizador_nome', 'responsavel', 'responsavel_nome'],
               'Diretoria do Clube'
             );
-            const associados =
+            const associadosByJoin =
               row.associados && typeof row.associados === 'object'
                 ? (row.associados as { nome_social?: string | null; nome_completo?: string | null })
                 : null;
+            const organizerId = typeof row.organizador_id === 'string' ? row.organizador_id : null;
+            const organizerById = organizerId ? organizerLookup.get(organizerId) ?? null : null;
+            const associados = associadosByJoin ??
+              (organizerById
+                ? {
+                    nome_social: organizerById.nome_social,
+                    nome_completo: organizerById.nome_completo,
+                  }
+                : null);
 
             return {
               id: String(row.id ?? `compromisso-${index}`),
               titulo: pickFirstString(row, ['titulo', 'nome', 'assunto'], 'Compromisso sem título'),
-              data: formatCompromissoDate(date),
+              data: formatCompromissoDate(dataHoraRaw),
               referente,
-              isUrgent:
-                !!date && toSaoPauloDateKey(date) === toSaoPauloDateKey(today),
+              isUrgent: extrairDataLocalISO(dataHoraRaw) === todayIso,
               detalhesEvento: {
                 id: String(row.id ?? `compromisso-${index}`),
                 titulo: pickFirstString(row, ['titulo', 'nome', 'assunto'], 'Compromisso sem título'),
@@ -201,8 +202,9 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
                 referente,
                 formato,
                 local,
+                dataHoraFormatada,
                 associados,
-                organizador,
+                organizador: associados?.nome_social || associados?.nome_completo || organizador,
               },
             } satisfies Compromisso;
           });
@@ -253,15 +255,17 @@ export function Dashboard({ currentAssociate, onNavigate }: DashboardProps) {
             <h2 className="text-sm font-bold tracking-[0.05em] uppercase text-text-muted mb-1">
               Bem-vindo(a)
             </h2>
-            <h1 className="text-2xl font-bold text-text-main tracking-tight">{displayName}</h1>
+            {!isGuest && <h1 className="text-2xl font-bold text-text-main tracking-tight">{displayName}</h1>}
           </div>
-          <div className="w-12 h-12 rounded-[12px] bg-brand-surface border border-brand-border overflow-hidden">
-            <img 
-              src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ffb2be`} 
-              alt="Avatar" 
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {!isGuest && (
+            <div className="w-12 h-12 rounded-[12px] bg-brand-surface border border-brand-border overflow-hidden">
+              <img
+                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ffb2be`}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
         </div>
       </header>
 

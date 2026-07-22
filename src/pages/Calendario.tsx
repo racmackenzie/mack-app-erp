@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Calendar as CalendarIcon, Clock, MapPin, Video, Plus } from 'lucide-react';
 import { AddEventoForm } from '../components/AddEventoForm';
 import { DetalhesEvento } from '../components/DetalhesEvento';
+import { formatarDataLocal, formatarPartesDataLocal } from '../lib/dateTime';
 import { supabase } from '../lib/supabaseClient';
-
-const BRAZIL_TIME_ZONE = 'America/Sao_Paulo';
 
 type CalendarioReuniao = {
   id: string;
@@ -12,11 +11,18 @@ type CalendarioReuniao = {
   data_hora: string;
   referente_a: string | null;
   projeto_id: string | null;
+  organizador_id: string | null;
   local: string | null;
   associados?: {
     nome_social: string | null;
     nome_completo: string | null;
   } | null;
+};
+
+type OrganizerLookup = {
+  id: string;
+  nome_social: string | null;
+  nome_completo: string | null;
 };
 
 type EventoCard = {
@@ -25,6 +31,7 @@ type EventoCard = {
   dia: string;
   mes: string;
   hora: string;
+  dataHoraFormatada: string;
   referente: string;
   formato: string;
   local: string;
@@ -33,6 +40,17 @@ type EventoCard = {
     nome_completo: string | null;
   } | null;
   projetoVinculado?: string;
+  organizador?: string;
+};
+
+const pickFirstString = (source: Record<string, unknown>, keys: string[], fallback: string): string => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return fallback;
 };
 
 interface CalendarioProps {
@@ -58,33 +76,79 @@ export function Calendario({ isGuest = false, onGuestBlockedAction }: Calendario
       return;
     }
 
-    const eventosDaTabela = (data ?? []).map((evento: CalendarioReuniao) => {
-      const dataEvento = new Date(evento.data_hora);
-      const dataValida = !Number.isNaN(dataEvento.getTime());
+    const rows = (data ?? []) as CalendarioReuniao[];
+    const organizerIds = Array.from(
+      new Set(
+        rows
+          .map((evento) => evento.organizador_id)
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      )
+    );
+
+    const organizerLookup = new Map<string, OrganizerLookup>();
+
+    if (organizerIds.length > 0) {
+      const { data: organizerRows, error: organizerError } = await supabase
+        .from('associados')
+        .select('id, nome_social, nome_completo')
+        .in('id', organizerIds);
+
+      if (organizerError) {
+        console.error('Erro ao carregar organizadores da agenda:', organizerError);
+      } else {
+        (organizerRows ?? []).forEach((organizer) => {
+          organizerLookup.set(String(organizer.id), {
+            id: String(organizer.id),
+            nome_social: organizer.nome_social ?? null,
+            nome_completo: organizer.nome_completo ?? null,
+          });
+        });
+      }
+    }
+
+    const eventosDaTabela = rows.map((evento: CalendarioReuniao) => {
+      const eventoRaw = evento as unknown as Record<string, unknown>;
+      const dataHoraRaw = String(
+        eventoRaw.data_hora ?? eventoRaw.data ?? eventoRaw.data_reuniao ?? eventoRaw.data_inicio ?? eventoRaw.created_at
+      );
+      const dataHoraFormatada = formatarDataLocal(dataHoraRaw);
+      const partesDataHora = formatarPartesDataLocal(dataHoraRaw);
+      const local = pickFirstString(eventoRaw, ['local', 'link_meet', 'endereco', 'endereço', 'sala'], 'Local a definir');
+      const referente = pickFirstString(eventoRaw, ['referente_a', 'tipo', 'referente', 'categoria', 'origem'], 'CLUBE');
+      const organizador = pickFirstString(
+        eventoRaw,
+        ['organizador', 'organizador_nome', 'responsavel', 'responsavel_nome'],
+        'Diretoria do Clube'
+      );
+      const organizadorById = evento.organizador_id ? organizerLookup.get(evento.organizador_id) ?? null : null;
+      const associadosByJoin =
+        evento.associados && typeof evento.associados === 'object'
+          ? {
+              nome_social: evento.associados.nome_social ?? null,
+              nome_completo: evento.associados.nome_completo ?? null,
+            }
+          : null;
+      const associados = associadosByJoin ??
+        (organizadorById
+          ? {
+              nome_social: organizadorById.nome_social,
+              nome_completo: organizadorById.nome_completo,
+            }
+          : null);
 
       return {
         id: evento.id,
-        titulo: evento.titulo,
-        dia: dataValida
-          ? dataEvento.toLocaleDateString('pt-BR', { day: '2-digit', timeZone: BRAZIL_TIME_ZONE })
-          : '--',
-        mes: dataValida
-          ? dataEvento
-              .toLocaleString('pt-BR', { month: 'short', timeZone: BRAZIL_TIME_ZONE })
-              .replace('.', '')
-          : '--',
-        hora: dataValida
-          ? dataEvento.toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              timeZone: BRAZIL_TIME_ZONE,
-            })
-          : '--:--',
-        referente: evento.referente_a ?? 'CLUBE',
-        formato: evento.local?.toLowerCase().startsWith('http') ? 'Online' : 'Presencial',
-        local: evento.local ?? 'Local a definir',
-        associados: evento.associados,
+        titulo: pickFirstString(eventoRaw, ['titulo', 'nome', 'assunto'], 'Compromisso sem título'),
+        dia: partesDataHora.dia,
+        mes: partesDataHora.mes,
+        hora: partesDataHora.hora,
+        dataHoraFormatada,
+        referente,
+        formato: local.toLowerCase().startsWith('http') ? 'Online' : 'Presencial',
+        local,
+        associados,
         projetoVinculado: evento.projeto_id ? `Projeto ${evento.projeto_id}` : undefined,
+        organizador: associados?.nome_social || associados?.nome_completo || organizador,
       };
     });
 
@@ -187,7 +251,7 @@ export function Calendario({ isGuest = false, onGuestBlockedAction }: Calendario
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-[12px] text-text-muted">
                   <Clock size={14} className="text-cranberry" />
-                  <span>{evento.hora}</span>
+                  <span>{evento.dataHoraFormatada || '--'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-[12px] text-text-muted">
                   {evento.formato === 'Online' ? (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { adicionarSegundosDataHoraLocal } from '../lib/dateTime';
 
 interface AddEventoFormProps {
   onClose: () => void;
@@ -19,20 +20,14 @@ export function AddEventoForm({ onClose, onSaved }: AddEventoFormProps) {
 
     const referenteA = referente;
     const local = localOuLink;
-    const dataHoraInput = dataHora;
-    const dataHoraComSegundos = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(dataHoraInput)
-      ? dataHoraInput
-      : `${dataHoraInput}:00`;
-    const dataHoraComOffset = /(?:Z|[+-]\d{2}:\d{2})$/i.test(dataHoraComSegundos)
-      ? dataHoraComSegundos
-      : `${dataHoraComSegundos}-03:00`;
+    const dataHoraSemConversao = adicionarSegundosDataHoraLocal(dataHora);
 
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData.session;
 
     const payload = {
       titulo: titulo,
-      data_hora: dataHoraComOffset,
+      data_hora: dataHoraSemConversao,
       referente_a: referenteA,
       local: local || null,
       projeto_id: projetoId === 'nenhum' ? null : projetoId,
