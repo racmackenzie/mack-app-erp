@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Search, Mail, Phone, ShieldAlert, User } from 'lucide-react';
 import { DetalhesMembro } from '../components/DetalhesMembro';
@@ -7,6 +7,10 @@ import { supabase, supabasePublic } from '../lib/supabaseClient';
 interface AssociadosProps {
   initialIsGuest: boolean;
   session?: Session | null;
+  associadoLogado?: {
+    role: string | null;
+    cargo: string | null;
+  } | null;
 }
 
 type AssociadoRow = {
@@ -38,12 +42,75 @@ type MembroCard = {
 
 const normalizeText = (value?: string | null): string => (value ?? '').toLowerCase().trim();
 
-export function Associados({ initialIsGuest, session = null }: AssociadosProps) {
+export function Associados({ initialIsGuest, session = null, associadoLogado = null }: AssociadosProps) {
   const ehConvidado = !session?.user;
+  const ehConselho =
+    associadoLogado?.role === 'conselho' ||
+    (associadoLogado?.cargo?.toLowerCase().includes('conselho') ?? false);
   const [searchQuery, setSearchQuery] = useState('');
   const [membros, setMembros] = useState<MembroCard[]>([]);
   const [selectedMembro, setSelectedMembro] = useState<MembroCard | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [modalConviteAberto, setModalConviteAberto] = useState(false);
+  const [emailConvite, setEmailConvite] = useState('');
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+
+  const enviarConvitePorFallback = async (email: string) => {
+    const response = await fetch('/api/invite-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        redirectTo: 'https://mack-app-erp.vercel.app/redefinir-senha',
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || 'Falha ao enviar convite via API fallback.');
+    }
+  };
+
+  const handleEnviarConvite = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!ehConselho) {
+      alert('Apenas membros do conselho podem enviar convites.');
+      return;
+    }
+
+    const email = emailConvite.trim();
+    if (!email) {
+      alert('Informe o e-mail do novo associado.');
+      return;
+    }
+
+    setEnviandoConvite(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email,
+          redirectTo: 'https://mack-app-erp.vercel.app/redefinir-senha',
+        },
+      });
+
+      if (error) {
+        await enviarConvitePorFallback(email);
+      }
+
+      alert('Convite enviado com sucesso para o e-mail!');
+      setEmailConvite('');
+      setModalConviteAberto(false);
+    } catch (inviteError) {
+      console.error('Erro ao enviar convite:', inviteError);
+      alert('Não foi possível enviar o convite. Verifique a Edge Function/API e tente novamente.');
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -120,8 +187,17 @@ export function Associados({ initialIsGuest, session = null }: AssociadosProps) 
     <div className="min-h-screen bg-brand-bg pb-24">
       <header className="px-4 pt-12 pb-4 bg-brand-surface-raised border-b border-brand-border sticky top-0 z-40">
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex flex-col gap-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-3">
             <h1 className="text-2xl font-bold text-text-main tracking-tight">Associados</h1>
+            {ehConselho && (
+              <button
+                type="button"
+                onClick={() => setModalConviteAberto(true)}
+                className="bg-[#E31C59] hover:bg-[#c41549] text-white text-sm font-medium px-4 py-2 rounded-xl transition-all flex items-center gap-2"
+              >
+                + Convidar Associado
+              </button>
+            )}
           </div>
 
           <div className="relative">
@@ -199,6 +275,51 @@ export function Associados({ initialIsGuest, session = null }: AssociadosProps) 
       </main>
 
       {selectedMembro && <DetalhesMembro membro={selectedMembro} isGuestView={ehConvidado} onClose={() => setSelectedMembro(null)} />}
+
+      {modalConviteAberto && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-brand-surface border border-brand-border rounded-2xl shadow-2xl p-5">
+            <h2 className="text-lg font-bold text-text-main">Convidar Novo Associado</h2>
+            <p className="text-sm text-text-muted mt-1">Envie um convite para primeiro acesso via e-mail.</p>
+
+            <form onSubmit={handleEnviarConvite} className="mt-4 flex flex-col gap-3">
+              <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted">
+                E-mail do Novo Associado
+              </label>
+              <input
+                type="email"
+                value={emailConvite}
+                onChange={(e) => setEmailConvite(e.target.value)}
+                placeholder="nome@mackenzie.br"
+                className="w-full bg-brand-bg border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry transition-colors"
+                required
+              />
+
+              <div className="mt-2 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (enviandoConvite) {
+                      return;
+                    }
+                    setModalConviteAberto(false);
+                  }}
+                  className="h-11 px-4 rounded-xl border border-brand-border text-text-main hover:bg-brand-bg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={enviandoConvite}
+                  className="bg-[#E31C59] hover:bg-[#c41549] disabled:opacity-70 text-white text-sm font-medium px-4 h-11 rounded-xl transition-all"
+                >
+                  {enviandoConvite ? 'Enviando...' : 'Enviar Convite'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
