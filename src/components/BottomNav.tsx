@@ -16,7 +16,7 @@ export function BottomNav({ currentRoute, navigate }: BottomNavProps) {
   return (
     <>
       <div className="h-28 w-full md:hidden" aria-hidden="true" />
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-brand-bg border-t border-brand-border pb-safe pt-2 px-4 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 w-full bg-brand-bg border-t border-brand-border pb-safe pt-2 px-4">
         <div className="flex justify-between items-center max-w-md mx-auto h-16">
           {navItems.map((item) => {
             const isActive = currentRoute === item.id;

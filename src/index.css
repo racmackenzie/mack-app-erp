@@ -20,6 +20,14 @@
 }
 
 @layer base {
+  html,
+  body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     @apply bg-brand-bg text-text-main font-sans antialiased;
   }

@@ -471,7 +471,7 @@ export default function App() {
                 : null
             }
           />
-                <main className="flex-1 relative w-full flex flex-col pb-24 md:pb-8">
+                <main className="flex-1 relative w-full flex flex-col pb-[calc(8rem+env(safe-area-inset-bottom))]">
             {currentRoute === '/dashboard' && (
                 <Dashboard
                   currentAssociate={currentAssociate}
@@ -512,9 +512,9 @@ export default function App() {
                 onGuestBlockedAction={showGuestRestrictedActionAlert}
               />
             )}
-                  <div className="w-full h-32 clear-both pointer-events-none" />
-                </main>
-                <BottomNav currentRoute={currentRoute} navigate={navigate} />
+            <div className="w-full h-32 clear-both pointer-events-none" />
+          </main>
+          <BottomNav currentRoute={currentRoute} navigate={navigate} />
           </div>
         </>
       )}
