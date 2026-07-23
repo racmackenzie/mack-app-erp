@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { PROJECT_STATUS_OPTIONS } from '../lib/projectStatus';
 
 interface AddProjetoFormProps {
   onClose: () => void;
@@ -110,7 +111,7 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
       const payload = {
         nome_projeto: nomeProjeto.trim(),
         avenida: avenida,
-        status: status || 'Planejamento',
+        status: status?.trim() || null,
         marco_atual: marcoAtual?.trim() || null,
         detalhes: detalhes?.trim() || null,
         link_grupo: linkGrupo?.trim() || null,
@@ -151,8 +152,6 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
     'Ação'
   ];
 
-  const statusOptions = ['Planejamento', 'Em Ação', 'Finalizado'];
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
       <div className="flex flex-col bg-brand-bg w-full h-full md:w-full md:max-w-3xl md:max-h-[85vh] md:h-auto md:rounded-2xl md:shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full md:slide-in-from-bottom-0 md:zoom-in-95 duration-300">
@@ -189,8 +188,8 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
             >
               <option value="">Selecione o Status (opcional)</option>
-              {statusOptions.map((st) => (
-                <option key={st} value={st}>{st}</option>
+              {PROJECT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>

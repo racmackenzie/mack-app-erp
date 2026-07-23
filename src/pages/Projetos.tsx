@@ -3,6 +3,10 @@ import { Star, CirclePlay, ChevronRight, Plus } from 'lucide-react';
 import { AddProjetoForm } from '../components/AddProjetoForm';
 import { DetalhesProjeto } from '../components/DetalhesProjeto';
 import { supabase } from '../lib/supabaseClient';
+import {
+  PROJECT_STATUS_DISPLAY_ORDER,
+  formatProjectStatusLabel,
+} from '../lib/projectStatus';
 
 interface ProjetosProps {
   isGuest?: boolean;
@@ -43,8 +47,6 @@ const normalizeText = (value: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
-
-const STATUS_DISPLAY_ORDER = ['Planejamento', 'Em Andamento', 'Concluído'];
 
 export function Projetos({ isGuest = false, onGuestBlockedAction, onGoToLogin }: ProjetosProps) {
   const [selectedAvenida, setSelectedAvenida] = useState<string>('TODAS');
@@ -139,12 +141,14 @@ export function Projetos({ isGuest = false, onGuestBlockedAction, onGoToLogin }:
   }, [projetos, selectedAvenida]);
 
   const statusOrder = useMemo(() => {
-    const dynamicStatuses = Array.from(new Set(filteredProjetos.map((projeto) => projeto.status))).filter(
+    const dynamicStatuses = Array.from(
+      new Set(filteredProjetos.map((projeto) => formatProjectStatusLabel(projeto.status)))
+    ).filter(
       (status) => status.trim().length > 0
     );
-    const alreadyIncluded = new Set(STATUS_DISPLAY_ORDER.map(normalizeText));
+    const alreadyIncluded = new Set(PROJECT_STATUS_DISPLAY_ORDER.map(normalizeText));
     const extras = dynamicStatuses.filter((status) => !alreadyIncluded.has(normalizeText(status)));
-    return [...STATUS_DISPLAY_ORDER, ...extras];
+    return [...PROJECT_STATUS_DISPLAY_ORDER, ...extras];
   }, [filteredProjetos]);
 
   const groupedByStatus = useMemo(() => {
@@ -233,7 +237,8 @@ export function Projetos({ isGuest = false, onGuestBlockedAction, onGoToLogin }:
               {group.projetos.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start">
                   {group.projetos.map((projeto) => {
-                    const isInProgress = normalizeText(projeto.status) === normalizeText('Em Andamento');
+                    const statusLabel = formatProjectStatusLabel(projeto.status);
+                    const isInProgress = normalizeText(statusLabel) === normalizeText('Em Andamento');
 
                     return (
                       <div
@@ -253,7 +258,7 @@ export function Projetos({ isGuest = false, onGuestBlockedAction, onGoToLogin }:
                             <h3 className="font-semibold text-text-main leading-tight mb-2 truncate">{projeto.nome}</h3>
                             <div className="flex items-center gap-1.5 text-[12px] text-text-muted">
                               <CirclePlay size={12} className={isInProgress ? 'text-cranberry' : 'text-text-muted'} />
-                              <span>{projeto.status}</span>
+                              <span>{statusLabel}</span>
                             </div>
                           </div>
 

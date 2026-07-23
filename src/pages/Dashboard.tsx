@@ -3,6 +3,7 @@ import { Calendar, ChevronRight, CirclePlay, LogOut, Star, UserCircle2 } from 'l
 import { DetalhesEvento, type EventoDetalhes } from '../components/DetalhesEvento';
 import { extrairDataLocalISO, formatarDataLocal, formatarPartesDataLocal } from '../lib/dateTime';
 import { supabase } from '../lib/supabaseClient';
+import { formatProjectStatusLabel } from '../lib/projectStatus';
 
 type AssociateIdentity = {
   foto_url?: string | null;
@@ -503,7 +504,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
                     </h4>
                     <div className="flex items-center gap-1.5 text-[12px] text-text-muted">
                       <CirclePlay size={12} className="text-cranberry" />
-                      <span>{projeto.status}</span>
+                      <span>{formatProjectStatusLabel(projeto.status)}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3">

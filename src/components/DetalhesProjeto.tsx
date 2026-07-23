@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, MessageSquare, Send, Link as LinkIcon, User } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
+import {
+  PROJECT_STATUS_OPTIONS,
+  formatProjectStatusLabel,
+  normalizeProjectStatusValue,
+} from '../lib/projectStatus';
 
 interface Comentario {
   id: string;
@@ -80,7 +85,7 @@ export function DetalhesProjeto({
   const [editNomeProjeto, setEditNomeProjeto] = useState(projeto.nome);
   const [editAvenida, setEditAvenida] = useState(projeto.avenida);
   const [editLiderId, setEditLiderId] = useState(projeto.lider_id ?? '');
-  const [editStatus, setEditStatus] = useState(projeto.status);
+  const [editStatus, setEditStatus] = useState(normalizeProjectStatusValue(projeto.status));
   const [editMarcoAtual, setEditMarcoAtual] = useState(projeto.marcoAtual);
   const [editDetalhes, setEditDetalhes] = useState(projeto.detalhes);
   const [editLinkGrupo, setEditLinkGrupo] = useState(projeto.linkGrupo ?? '');
@@ -103,7 +108,6 @@ export function DetalhesProjeto({
     'Profissionais',
     'Ação',
   ];
-  const statusOptions = ['Planejamento', 'Em Ação', 'Finalizado'];
   const nomeLiderProjeto =
     projetoAtual.associados?.nome_social ||
     projetoAtual.associados?.nome_completo ||
@@ -125,7 +129,7 @@ export function DetalhesProjeto({
       setEditNomeProjeto(source.nome);
       setEditAvenida(source.avenida);
       setEditLiderId(source.lider_id ?? '');
-      setEditStatus(source.status);
+      setEditStatus(normalizeProjectStatusValue(source.status));
       setEditMarcoAtual(source.marcoAtual);
       setEditDetalhes(source.detalhes);
       setEditLinkGrupo(source.linkGrupo ?? '');
@@ -327,7 +331,7 @@ export function DetalhesProjeto({
       const payload = {
         nome_projeto: editNomeProjeto.trim(),
         avenida: editAvenida,
-        status: editStatus?.trim() || 'Planejamento',
+        status: editStatus?.trim() || null,
         marco_atual: editMarcoAtual?.trim() || null,
         detalhes: editDetalhes?.trim() || null,
         link_grupo: editLinkGrupo?.trim() || null,
@@ -445,7 +449,7 @@ export function DetalhesProjeto({
                     {projetoAtual.avenida}
                   </span>
                   <span className="px-2.5 py-1 rounded-full bg-cranberry/10 border border-cranberry/20 text-[10px] font-bold uppercase tracking-widest text-cranberry">
-                    {projetoAtual.status}
+                    {formatProjectStatusLabel(projetoAtual.status)}
                   </span>
                 </div>
               </div>
@@ -505,8 +509,8 @@ export function DetalhesProjeto({
                       className="w-full bg-brand-bg border border-brand-border rounded-[12px] h-11 px-3 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
                     >
                       <option value="">Selecione o Status (opcional)</option>
-                      {statusOptions.map((statusOption) => (
-                        <option key={statusOption} value={statusOption}>{statusOption}</option>
+                      {PROJECT_STATUS_OPTIONS.map((statusOption) => (
+                        <option key={statusOption.value} value={statusOption.value}>{statusOption.label}</option>
                       ))}
                     </select>
                   </div>
