@@ -405,7 +405,7 @@ export default function App() {
 
   if (currentRoute === '/redefinir-senha') {
     return (
-      <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
+      <div className="min-h-screen flex flex-col bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
         <RedefinirSenha onSuccess={handleRedefinirSenhaSuccess} />
       </div>
     );
@@ -438,8 +438,8 @@ export default function App() {
 
   if (!session && !isGuest) {
     return (
-      <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry flex h-screen overflow-hidden">
-        <div className="w-full overflow-y-auto">
+      <div className="min-h-screen flex flex-col bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
+        <div className="w-full flex-1">
           <Login onLogin={handleLogin} />
         </div>
       </div>
@@ -447,9 +447,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry flex h-screen overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
       {currentRoute === '/login' ? (
-        <div className="w-full overflow-y-auto">
+        <div className="w-full flex-1">
           <Login onLogin={handleLogin} />
         </div>
       ) : (
@@ -471,7 +471,7 @@ export default function App() {
                 : null
             }
           />
-          <div className="flex-1 overflow-y-auto relative w-full flex flex-col pb-24 md:pb-8">
+                <main className="flex-1 relative w-full flex flex-col pb-24 md:pb-8">
             {currentRoute === '/dashboard' && (
                 <Dashboard
                   currentAssociate={currentAssociate}
@@ -512,8 +512,9 @@ export default function App() {
                 onGuestBlockedAction={showGuestRestrictedActionAlert}
               />
             )}
-            
-            <BottomNav currentRoute={currentRoute} navigate={navigate} />
+                  <div className="w-full h-32 clear-both pointer-events-none" />
+                </main>
+                <BottomNav currentRoute={currentRoute} navigate={navigate} />
           </div>
         </>
       )}
