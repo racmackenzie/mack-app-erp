@@ -52,6 +52,7 @@ const isFirstAccessRoute = () => {
 
   return (
     pathname.includes('/redefinir-senha') ||
+    hash.includes('access_token') ||
     hash.includes('type=invite') ||
     hash.includes('type=recovery')
   );
@@ -80,6 +81,7 @@ export default function App() {
     const hash = window.location.hash;
     const ehRotaRedefinir =
       pathname.includes('/redefinir-senha') ||
+      hash.includes('access_token') ||
       hash.includes('type=invite') ||
       hash.includes('type=recovery');
 
@@ -185,6 +187,7 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const hasInviteHash =
+        window.location.hash.includes('access_token') ||
         window.location.hash.includes('type=invite') ||
         window.location.hash.includes('type=recovery') ||
         window.location.pathname.includes('/redefinir-senha');
@@ -372,6 +375,20 @@ export default function App() {
       }
     : undefined;
 
+  const handleRedefinirSenhaSuccess = async () => {
+    const userId = session?.user?.id;
+
+    if (userId) {
+      setProfileLoading(true);
+      const requestId = ++profileLoadRequestIdRef.current;
+      await loadCurrentAssociate(userId, requestId);
+    }
+
+    setNeedsOnboarding(false);
+    window.history.replaceState({}, document.title, '/');
+    setCurrentRoute('/dashboard');
+  };
+
   if (currentRoute === '/redefinir-senha') {
     return (
       <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
@@ -398,20 +415,6 @@ export default function App() {
   const handleGoToLoginFromGuest = () => {
     setIsGuest(false);
     setCurrentRoute('/login');
-  };
-
-  const handleRedefinirSenhaSuccess = async () => {
-    const userId = session?.user?.id;
-
-    if (userId) {
-      setProfileLoading(true);
-      const requestId = ++profileLoadRequestIdRef.current;
-      await loadCurrentAssociate(userId, requestId);
-    }
-
-    setNeedsOnboarding(false);
-    window.history.replaceState({}, document.title, '/');
-    setCurrentRoute('/dashboard');
   };
 
   if (!session && !isGuest) {
