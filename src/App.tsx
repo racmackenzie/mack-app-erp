@@ -471,7 +471,7 @@ export default function App() {
                 : null
             }
           />
-          <div className="flex-1 overflow-y-auto relative w-full flex flex-col">
+          <div className="flex-1 overflow-y-auto relative w-full flex flex-col pb-24 md:pb-8">
             {currentRoute === '/dashboard' && (
                 <Dashboard
                   currentAssociate={currentAssociate}
