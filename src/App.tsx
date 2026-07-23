@@ -184,7 +184,12 @@ export default function App() {
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || window.location.hash.includes('type=invite')) {
+      const hasInviteHash =
+        window.location.hash.includes('type=invite') ||
+        window.location.hash.includes('type=recovery') ||
+        window.location.pathname.includes('/redefinir-senha');
+
+      if (hasInviteHash || event === 'PASSWORD_RECOVERY') {
         setSession(session);
         setCurrentRoute('/redefinir-senha');
         setProfileLoading(false);
