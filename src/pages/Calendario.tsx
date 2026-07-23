@@ -175,7 +175,7 @@ export function Calendario({ isGuest = false, onGuestBlockedAction }: Calendario
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg pb-24">
+    <div className="min-h-screen bg-brand-bg pb-2">
       {/* Header */}
       <header className="px-4 pt-12 pb-4 bg-brand-surface-raised border-b border-brand-border sticky top-0 z-40">
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex flex-col gap-4">

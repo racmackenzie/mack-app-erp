@@ -336,7 +336,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
   }, []);
 
   return (
-    <div className="min-h-screen bg-brand-bg pb-24">
+    <div className="min-h-screen bg-brand-bg pb-2">
       {/* Header */}
       <header className="px-4 pt-12 pb-6 border-b border-brand-border bg-brand-surface-raised sticky top-0 z-40">
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex justify-between items-center">
