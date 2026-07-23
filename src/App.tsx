@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { AddAssociadoForm, type AssociadoFormValues } from './components/AddAssociadoForm';
 import { supabase } from './lib/supabaseClient';
+import { RedefinirSenha } from './pages/RedefinirSenha';
 
 const GUEST_ACTION_MESSAGE =
   'Você está navegando como convidado. Faça login como associado para realizar esta ação.';
@@ -45,8 +46,21 @@ type AssociateProfile = {
   role: string | null;
 };
 
+const isFirstAccessRoute = () => {
+  const pathname = window.location.pathname;
+  const hash = window.location.hash;
+
+  return (
+    pathname.includes('/redefinir-senha') ||
+    hash.includes('type=invite') ||
+    hash.includes('type=recovery')
+  );
+};
+
+const getInitialRoute = () => (isFirstAccessRoute() ? '/redefinir-senha' : '/dashboard');
+
 export default function App() {
-  const [currentRoute, setCurrentRoute] = useState<string>('/dashboard');
+  const [currentRoute, setCurrentRoute] = useState<string>(getInitialRoute);
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState<boolean>(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -55,6 +69,25 @@ export default function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const profileLoadRequestIdRef = useRef(0);
+  const currentRouteRef = useRef(currentRoute);
+
+  useEffect(() => {
+    currentRouteRef.current = currentRoute;
+  }, [currentRoute]);
+
+  useEffect(() => {
+    const pathname = window.location.pathname;
+    const hash = window.location.hash;
+    const ehRotaRedefinir =
+      pathname.includes('/redefinir-senha') ||
+      hash.includes('type=invite') ||
+      hash.includes('type=recovery');
+
+    if (ehRotaRedefinir) {
+      setCurrentRoute('/redefinir-senha');
+      setProfileLoading(false);
+    }
+  }, []);
 
   const showGuestRestrictedActionAlert = () => {
     alert(GUEST_ACTION_MESSAGE);
@@ -128,7 +161,9 @@ export default function App() {
         setSession(session);
         setIsGuest(false);
         setCurrentUserId(session.user.id);
-        setCurrentRoute('/dashboard');
+        if (currentRouteRef.current !== '/redefinir-senha') {
+          setCurrentRoute('/dashboard');
+        }
         setProfileLoading(true);
         const requestId = ++profileLoadRequestIdRef.current;
         await loadCurrentAssociate(session.user.id, requestId);
@@ -142,11 +177,20 @@ export default function App() {
       setUserRole(null);
       setNeedsOnboarding(false);
       setIsGuest(true);
-      setCurrentRoute('/dashboard');
+      if (currentRouteRef.current !== '/redefinir-senha') {
+        setCurrentRoute('/dashboard');
+      }
       setProfileLoading(false);
     };
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || window.location.hash.includes('type=invite')) {
+        setSession(session);
+        setCurrentRoute('/redefinir-senha');
+        setProfileLoading(false);
+        return;
+      }
+
       setSession(session);
 
       if (!session?.user) {
@@ -164,7 +208,9 @@ export default function App() {
       setSession(session);
       setIsGuest(false);
       setCurrentUserId(session.user.id);
-      setCurrentRoute('/dashboard');
+      if (currentRouteRef.current !== '/redefinir-senha') {
+        setCurrentRoute('/dashboard');
+      }
       setProfileLoading(true);
       const requestId = ++profileLoadRequestIdRef.current;
 
@@ -321,6 +367,14 @@ export default function App() {
       }
     : undefined;
 
+  if (currentRoute === '/redefinir-senha') {
+    return (
+      <div className="min-h-screen bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
+        <RedefinirSenha onSuccess={handleRedefinirSenhaSuccess} />
+      </div>
+    );
+  }
+
   if (profileLoading) {
     return (
       <div className="min-h-screen bg-brand-bg text-text-main flex items-center justify-center px-6">
@@ -339,6 +393,20 @@ export default function App() {
   const handleGoToLoginFromGuest = () => {
     setIsGuest(false);
     setCurrentRoute('/login');
+  };
+
+  const handleRedefinirSenhaSuccess = async () => {
+    const userId = session?.user?.id;
+
+    if (userId) {
+      setProfileLoading(true);
+      const requestId = ++profileLoadRequestIdRef.current;
+      await loadCurrentAssociate(userId, requestId);
+    }
+
+    setNeedsOnboarding(false);
+    window.history.replaceState({}, document.title, '/');
+    setCurrentRoute('/dashboard');
   };
 
   if (!session && !isGuest) {
