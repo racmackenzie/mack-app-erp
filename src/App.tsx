@@ -68,6 +68,7 @@ export default function App() {
   const [currentAssociate, setCurrentAssociate] = useState<AssociateRecord | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [mostrarModalCompletarPerfil, setMostrarModalCompletarPerfil] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const profileLoadRequestIdRef = useRef(0);
   const currentRouteRef = useRef(currentRoute);
@@ -115,12 +116,15 @@ export default function App() {
         setCurrentAssociate(null);
         setUserRole(null);
         setNeedsOnboarding(true);
+        setMostrarModalCompletarPerfil(true);
         return;
       }
 
       setCurrentAssociate(data);
       setUserRole(data.role ?? null);
-      setNeedsOnboarding(isBlank(data.telefone) || isBlank(data.nome_social));
+      const perfilIncompleto = isBlank(data.nome_completo) || isBlank(data.telefone) || isBlank(data.nome_social);
+      setNeedsOnboarding(perfilIncompleto);
+      setMostrarModalCompletarPerfil(perfilIncompleto);
     } catch (error) {
       if (requestId !== profileLoadRequestIdRef.current) {
         return;
@@ -130,6 +134,7 @@ export default function App() {
       setCurrentAssociate(null);
       setUserRole(null);
       setNeedsOnboarding(true);
+      setMostrarModalCompletarPerfil(true);
     } finally {
       if (requestId === profileLoadRequestIdRef.current) {
         setProfileLoading(false);
@@ -178,6 +183,7 @@ export default function App() {
       setCurrentAssociate(null);
       setUserRole(null);
       setNeedsOnboarding(false);
+      setMostrarModalCompletarPerfil(false);
       setIsGuest(true);
       if (currentRouteRef.current !== '/redefinir-senha') {
         setCurrentRoute('/dashboard');
@@ -207,6 +213,7 @@ export default function App() {
         setCurrentAssociate(null);
         setUserRole(null);
         setNeedsOnboarding(false);
+        setMostrarModalCompletarPerfil(false);
         setIsGuest(event === 'SIGNED_OUT' ? false : true);
         setCurrentRoute(event === 'SIGNED_OUT' ? '/login' : '/dashboard');
         setProfileLoading(false);
@@ -238,6 +245,7 @@ export default function App() {
           setCurrentAssociate(null);
           setUserRole(null);
           setNeedsOnboarding(true);
+          setMostrarModalCompletarPerfil(true);
           return;
         }
 
@@ -245,12 +253,16 @@ export default function App() {
           setCurrentAssociate(null);
           setUserRole(null);
           setNeedsOnboarding(true);
+          setMostrarModalCompletarPerfil(true);
           return;
         }
 
         setCurrentAssociate(profile);
         setUserRole(profile.role ?? null);
-        setNeedsOnboarding(isBlank(profile.telefone) || isBlank(profile.nome_social));
+        const perfilIncompleto =
+          isBlank(profile.nome_completo) || isBlank(profile.telefone) || isBlank(profile.nome_social);
+        setNeedsOnboarding(perfilIncompleto);
+        setMostrarModalCompletarPerfil(perfilIncompleto);
       } catch (error) {
         if (requestId !== profileLoadRequestIdRef.current) {
           return;
@@ -260,6 +272,7 @@ export default function App() {
         setCurrentAssociate(null);
         setUserRole(null);
         setNeedsOnboarding(true);
+        setMostrarModalCompletarPerfil(true);
       } finally {
         if (requestId === profileLoadRequestIdRef.current) {
           setProfileLoading(false);
@@ -291,6 +304,7 @@ export default function App() {
     setCurrentAssociate(null);
     setCurrentUserId(null);
     setNeedsOnboarding(false);
+    setMostrarModalCompletarPerfil(false);
     setIsGuest(false);
     setCurrentRoute('/login');
     setProfileLoading(false);
@@ -359,6 +373,7 @@ export default function App() {
 
     setCurrentAssociate(data?.[0] ?? null);
     setNeedsOnboarding(false);
+    setMostrarModalCompletarPerfil(false);
     setCurrentRoute('/dashboard');
   };
 
@@ -384,7 +399,6 @@ export default function App() {
       await loadCurrentAssociate(userId, requestId);
     }
 
-    setNeedsOnboarding(false);
     window.history.replaceState({}, document.title, '/');
     setCurrentRoute('/dashboard');
   };
@@ -412,6 +426,11 @@ export default function App() {
     setCurrentRoute(route);
   };
 
+  const handleCompletarPerfil = () => {
+    setMostrarModalCompletarPerfil(false);
+    setCurrentRoute('/perfil');
+  };
+
   const handleGoToLoginFromGuest = () => {
     setIsGuest(false);
     setCurrentRoute('/login');
@@ -432,17 +451,6 @@ export default function App() {
       {currentRoute === '/login' ? (
         <div className="w-full overflow-y-auto">
           <Login onLogin={handleLogin} />
-        </div>
-      ) : needsOnboarding ? (
-        <div className="w-full overflow-y-auto">
-          <AddAssociadoForm
-            mode="screen"
-            title="Completar Perfil"
-            submitLabel="Salvar"
-            hideEmail
-            initialValues={onboardingInitialValues}
-            onSubmit={handleOnboardingSubmit}
-          />
         </div>
       ) : (
         <>
@@ -508,6 +516,33 @@ export default function App() {
             <BottomNav currentRoute={currentRoute} navigate={navigate} />
           </div>
         </>
+      )}
+
+      {mostrarModalCompletarPerfil && session && !isGuest && currentRoute !== '/perfil' && needsOnboarding && (
+        <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl relative">
+            <div className="text-4xl" aria-hidden="true">👤</div>
+            <h2 className="mt-4 text-2xl font-bold text-[#1F2937]">Complete seu Perfil</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[#4B5563]">
+              Identificamos que seu cadastro ainda não está completo. Adicione suas informações para que os outros membros do clube possam te conhecer!
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                onClick={handleCompletarPerfil}
+                className="w-full bg-[#E31C59] hover:bg-[#c41549] text-white font-medium py-3 rounded-xl transition-all shadow-sm"
+              >
+                Completar Perfil
+              </button>
+              <button
+                onClick={() => setMostrarModalCompletarPerfil(false)}
+                className="w-full py-2 text-sm font-medium text-[#6B7280] hover:text-[#374151] transition-colors"
+              >
+                Lembrar mais tarde
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

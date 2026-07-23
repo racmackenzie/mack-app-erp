@@ -67,12 +67,13 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-brand-bg max-w-md mx-auto">
-      <div className="flex justify-center mb-12">
+      <div className="flex flex-col items-center mb-12">
         <img
           src="/logo-rotaract-mackenzie.png"
-          alt="Rotaract Club Universidade Mackenzie"
+          alt="MackApp"
           className="h-16 md:h-20 w-auto object-contain"
         />
+        <h1 className="mt-4 text-3xl font-bold tracking-tight text-text-main">MackApp</h1>
       </div>
 
       {modoEsqueciSenha ? (

@@ -35,9 +35,10 @@ export function Sidebar({
       <div className="px-4 py-4 mb-2 flex items-center justify-start border-b border-brand-border">
         <img
           src="/logo-rotaract-mackenzie.png"
-          alt="Rotaract Club Universidade Mackenzie"
+          alt="MackApp"
           className="h-10 w-auto object-contain"
         />
+        <span className="ml-3 text-lg font-bold tracking-tight text-text-main">MackApp</span>
       </div>
       <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
         {navItems.map((item) => {
