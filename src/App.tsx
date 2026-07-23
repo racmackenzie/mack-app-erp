@@ -447,7 +447,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-brand-bg text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row text-text-main font-sans selection:bg-cranberry selection:text-on-cranberry">
       {currentRoute === '/login' ? (
         <div className="w-full flex-1">
           <Login onLogin={handleLogin} />
@@ -471,7 +471,7 @@ export default function App() {
                 : null
             }
           />
-          <main className="flex-1 relative w-full flex flex-col pb-2">
+          <main className="flex-1 w-full p-4 md:p-8 pb-20 md:pb-8 overflow-y-auto">
             {currentRoute === '/dashboard' && (
               <Dashboard
                 currentAssociate={currentAssociate}
