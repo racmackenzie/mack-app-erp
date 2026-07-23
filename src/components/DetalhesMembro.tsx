@@ -121,18 +121,6 @@ export function DetalhesMembro({ membro, isGuestView, onClose }: DetalhesMembroP
               )}
             </div>
 
-            {!ehConvidado && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button className="bg-brand-surface border border-brand-border text-text-main h-12 rounded-[12px] font-semibold text-[13px] flex items-center justify-center gap-2 hover:bg-brand-surface-raised transition-colors">
-                  <Mail size={16} />
-                  Enviar E-mail
-                </button>
-                <button className="bg-cranberry text-on-cranberry h-12 rounded-[12px] font-semibold text-[13px] flex items-center justify-center gap-2 hover:bg-cranberry-dark transition-colors">
-                  <Phone size={16} />
-                  WhatsApp
-                </button>
-              </div>
-            )}
           </section>
         </div>
       </main>
