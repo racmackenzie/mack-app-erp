@@ -30,23 +30,14 @@ export function Sidebar({
     { id: '/calendario', label: 'Agenda', icon: CalendarDays },
   ];
 
-  const shouldShowUserPhoto = Boolean(hasSession && !isGuest && userProfile?.foto_url);
-  const avatarAlt = userProfile?.nome_social || userProfile?.nome_completo || 'Foto do associado';
-
   return (
     <aside className="hidden md:flex flex-col w-64 h-full bg-brand-surface border-r border-brand-border shrink-0 z-40">
-      <div className="p-6 flex items-center gap-3 border-b border-brand-border">
-        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 bg-brand-surface-raised flex items-center justify-center">
-          {shouldShowUserPhoto ? (
-            <img src={userProfile?.foto_url ?? ''} alt={avatarAlt} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-cranberry" aria-hidden="true"></div>
-          )}
-        </div>
-        <div>
-          <h1 className="font-bold text-text-main leading-tight">Mackenzie</h1>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Copilot</p>
-        </div>
+      <div className="px-4 py-4 mb-2 flex items-center justify-start border-b border-brand-border">
+        <img
+          src="/logo-rotaract-mackenzie.png"
+          alt="Rotaract Club Universidade Mackenzie"
+          className="h-10 w-auto object-contain"
+        />
       </div>
       <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
         {navItems.map((item) => {

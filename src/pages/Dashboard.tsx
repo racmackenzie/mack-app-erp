@@ -33,6 +33,8 @@ type ProjetoDestaque = {
   nome: string;
   avenida: string;
   status: string;
+  liderNome: string;
+  liderFotoUrl: string | null;
 };
 
 type OrganizerLookup = {
@@ -52,6 +54,17 @@ const pickFirstString = (source: Record<string, unknown>, keys: string[], fallba
     }
   }
   return fallback;
+};
+
+const normalizeStatus = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 };
 
 const formatCompromissoDate = (isoString: string): string => {
@@ -138,7 +151,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
 
       try {
         // Public read: convidados e usuários logados carregam os mesmos compromissos.
-        const [{ data: compromissosRaw, error: compromissosError }, { data: projetosRaw, error: projetosError }] =
+        const [{ data: compromissosRaw, error: compromissosError }, { data: todosProjetos, error: projetosError }] =
           await Promise.all([
             supabase
               .from('calendario_reunioes')
@@ -147,9 +160,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
               .limit(3),
             supabase
               .from('projetos')
-              .select('*')
-              .or('status.eq.Em Andamento,status.eq.em_andamento')
-              .limit(4),
+              .select('*, associados:lider_id (nome_social, nome_completo, foto_url)'),
           ]);
 
         console.log('Compromissos retornados do banco:', compromissosRaw);
@@ -255,12 +266,49 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
           console.error('Erro ao buscar projetos em destaque:', projetosError);
           setProjetosDestaque([]);
         } else {
-          const parsedProjetos = (projetosRaw ?? []).map((row: Record<string, unknown>, index) => ({
-            id: String(row.id ?? `projeto-${index}`),
-            nome: pickFirstString(row, ['nome', 'titulo'], 'Projeto sem nome'),
-            avenida: pickFirstString(row, ['avenida', 'categoria'], 'Sem avenida'),
-            status: pickFirstString(row, ['status'], 'Sem status'),
-          }));
+          // Prioridade de destaque: Em Andamento > Planejamento > Concluídos/Finalizados.
+          let emDestaque =
+            todosProjetos?.filter((projeto) => {
+              const status = normalizeStatus(projeto.status);
+              return status.includes('andamento') || status.includes('execucao');
+            }) ?? [];
+
+          if (emDestaque.length === 0) {
+            emDestaque =
+              todosProjetos?.filter((projeto) => {
+                const status = normalizeStatus(projeto.status);
+                return status.includes('planejamento');
+              }) ?? [];
+          }
+
+          if (emDestaque.length === 0) {
+            emDestaque =
+              todosProjetos?.filter((projeto) => {
+                const status = normalizeStatus(projeto.status);
+                return status.includes('concluido') || status.includes('finalizado');
+              }) ?? [];
+          }
+
+          const parsedProjetos = emDestaque.slice(0, 3).map((row: Record<string, unknown>, index) => {
+            const associadoByJoin =
+              row.associados && typeof row.associados === 'object'
+                ? (row.associados as { nome_social?: string | null; nome_completo?: string | null; foto_url?: string | null })
+                : null;
+            const liderNome =
+              associadoByJoin?.nome_social?.trim() ||
+              associadoByJoin?.nome_completo?.trim() ||
+              pickFirstString(row, ['lider_nome', 'lider', 'responsavel', 'responsavel_nome'], 'Liderança não definida');
+
+            return {
+              id: String(row.id ?? `projeto-${index}`),
+              nome: pickFirstString(row, ['nome_projeto', 'nome', 'titulo'], 'Projeto sem nome'),
+              avenida: pickFirstString(row, ['avenida', 'categoria'], 'Sem avenida'),
+              status: pickFirstString(row, ['status'], 'Sem status'),
+              liderNome,
+              liderFotoUrl: associadoByJoin?.foto_url?.trim() || null,
+            } satisfies ProjetoDestaque;
+          });
+
           setProjetosDestaque(parsedProjetos);
         }
       } catch (error) {
@@ -418,12 +466,12 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
             </button>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoadingProjetos &&
-              [1, 2, 3, 4].map((item) => (
+              [1, 2, 3].map((item) => (
                 <div
                   key={item}
-                  className="bg-brand-surface border border-brand-border rounded-[12px] p-4 flex flex-col justify-between aspect-square animate-pulse"
+                  className="bg-brand-surface border border-brand-border rounded-[12px] p-4 flex flex-col gap-4 animate-pulse"
                 >
                   <div className="w-8 h-8 rounded-full bg-brand-surface-raised border border-brand-border" />
                   <div className="space-y-2">
@@ -431,6 +479,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
                     <div className="h-4 w-5/6 bg-brand-surface-raised rounded" />
                     <div className="h-3 w-1/2 bg-brand-surface-raised rounded" />
                   </div>
+                  <div className="h-9 w-28 bg-brand-surface-raised rounded" />
                 </div>
               ))}
 
@@ -438,7 +487,7 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
               projetosDestaque.map((projeto) => (
                 <div
                   key={projeto.id}
-                  className="bg-brand-surface border border-brand-border rounded-[12px] p-4 flex flex-col justify-between aspect-square"
+                  className="bg-brand-surface border border-brand-border rounded-[12px] p-4 flex flex-col gap-4"
                 >
                   <div className="flex justify-between items-start">
                     <div className="w-8 h-8 rounded-full bg-brand-surface-raised border border-brand-border flex items-center justify-center">
@@ -457,12 +506,29 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
                       <span>{projeto.status}</span>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={projeto.liderFotoUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(projeto.liderNome)}&backgroundColor=ffb2be`}
+                        alt={`Avatar de ${projeto.liderNome}`}
+                        className="w-8 h-8 rounded-full border border-brand-border object-cover shrink-0"
+                      />
+                      <span className="text-xs text-text-muted truncate">{projeto.liderNome}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.('/projetos')}
+                      className="text-[10px] font-bold uppercase tracking-widest text-cranberry shrink-0"
+                    >
+                      Ver detalhes
+                    </button>
+                  </div>
                 </div>
               ))}
 
             {!isLoadingProjetos && projetosDestaque.length === 0 && (
               <div className="col-span-full bg-brand-surface border border-dashed border-brand-border rounded-[12px] p-6 text-center text-sm text-text-muted">
-                Nenhum projeto em andamento encontrado.
+                Nenhum projeto encontrado.
               </div>
             )}
           </div>

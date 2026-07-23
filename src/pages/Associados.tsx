@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Search, Mail, Phone, ShieldAlert, User } from 'lucide-react';
 import { DetalhesMembro } from '../components/DetalhesMembro';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabasePublic } from '../lib/supabaseClient';
 
 interface AssociadosProps {
   initialIsGuest: boolean;
+  session?: Session | null;
 }
 
 type AssociadoRow = {
@@ -36,17 +38,19 @@ type MembroCard = {
 
 const normalizeText = (value?: string | null): string => (value ?? '').toLowerCase().trim();
 
-export function Associados({ initialIsGuest }: AssociadosProps) {
-  const isGuestView = initialIsGuest;
+export function Associados({ initialIsGuest, session = null }: AssociadosProps) {
+  const ehConvidado = !session?.user;
   const [searchQuery, setSearchQuery] = useState('');
   const [membros, setMembros] = useState<MembroCard[]>([]);
   const [selectedMembro, setSelectedMembro] = useState<MembroCard | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
 
     const loadAssociadosAtivos = async () => {
-      const { data, error } = await supabase
+      const supabaseClient = session?.user ? supabase : supabasePublic;
+      const { data, error } = await supabaseClient
         .from('associados')
         .select('*')
         .eq('ativo', true)
@@ -57,10 +61,17 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
       }
 
       if (error) {
-        console.error('Erro ao carregar associados ativos:', error);
+        console.error('Erro ao buscar associados:', error);
+        setLoadError(
+          error.code === '42501' || error.message.toLowerCase().includes('row-level security')
+            ? 'Os associados nao puderam ser carregados com as permissoes atuais.'
+            : 'Nao foi possivel carregar os associados.'
+        );
         setMembros([]);
         return;
       }
+
+      setLoadError(null);
 
       const membrosAtivos = ((data ?? []) as AssociadoRow[]).map((associado) => {
         const nomeSocial = associado.nome_social || '';
@@ -89,7 +100,7 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [session]);
 
   const filteredMembros = useMemo(() => {
     const query = normalizeText(searchQuery);
@@ -150,10 +161,10 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
               <p className="text-[12px] text-text-muted mt-0.5 truncate">{membro.cargo}</p>
               
               <div className="mt-4 flex flex-col gap-2">
-                {isGuestView ? (
+                {ehConvidado ? (
                   <div className="flex items-center gap-2 text-[12px] text-text-muted bg-brand-surface-raised px-3 py-2 rounded-[8px] border border-brand-border">
                     <ShieldAlert size={14} className="text-rotary-yellow" />
-                    <span className="italic">Informações de contato restritas.</span>
+                    <span className="italic">Faça login para ver as informações de contato.</span>
                   </div>
                 ) : (
                   <>
@@ -172,7 +183,14 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
           </div>
         ))}
 
-        {filteredMembros.length === 0 && (
+        {loadError && (
+          <div className="text-center py-12 flex flex-col items-center justify-center gap-3">
+            <ShieldAlert size={32} className="text-rotary-yellow" />
+            <p className="text-sm text-text-muted">{loadError}</p>
+          </div>
+        )}
+
+        {!loadError && filteredMembros.length === 0 && (
           <div className="text-center py-12 flex flex-col items-center justify-center gap-3">
             <User size={32} className="text-brand-border" />
             <p className="text-sm text-text-muted">Nenhum associado encontrado.</p>
@@ -180,7 +198,7 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
         )}
       </main>
 
-      {selectedMembro && <DetalhesMembro membro={selectedMembro} isGuestView={isGuestView} onClose={() => setSelectedMembro(null)} />}
+      {selectedMembro && <DetalhesMembro membro={selectedMembro} isGuestView={ehConvidado} onClose={() => setSelectedMembro(null)} />}
     </div>
   );
 }

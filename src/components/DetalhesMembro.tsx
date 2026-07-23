@@ -19,28 +19,16 @@ interface DetalhesMembroProps {
 }
 
 export function DetalhesMembro({ membro, isGuestView, onClose }: DetalhesMembroProps) {
+  const ehConvidado = isGuestView;
   const displayName = membro.nome?.trim() || 'Associado(a)';
   const socialName = membro.nomeSocial?.trim() || '';
   const shouldShowSocialName = socialName.length > 0 && socialName !== displayName;
   const cargo = membro.cargo?.trim() || 'Associado(a)';
   const profissao = membro.profissao?.trim() || 'Profissão não informada';
-  const email = membro.email?.trim() || 'E-mail não informado';
-  const whatsapp = membro.whatsapp?.trim() || 'Telefone não informado';
+  const email = membro.email?.trim() || '';
+  const whatsapp = membro.whatsapp?.trim() || '';
   const sobre = membro.sobre?.trim() || 'Nenhuma informação adicional fornecida.';
   const hasAvatar = Boolean(membro.avatar?.trim());
-
-  
-  const blurContact = (text: string, type: 'email' | 'phone') => {
-    if (type === 'email') {
-      const parts = text.split('@');
-      if (parts.length === 2) {
-        return `${parts[0][0]}***@${parts[1]}`;
-      }
-      return '***@***';
-    } else {
-      return '(11) 9****-****';
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
@@ -93,41 +81,47 @@ export function DetalhesMembro({ membro, isGuestView, onClose }: DetalhesMembroP
             <div className="bg-brand-surface border border-brand-border rounded-[14px] p-4 flex flex-col gap-3">
               <h3 className="text-[12px] font-bold uppercase tracking-widest text-text-muted">Contatos</h3>
 
-              {isGuestView && (
+              {ehConvidado ? (
                 <div className="flex items-center gap-2 text-[12px] text-text-muted bg-brand-surface-raised px-3 py-2 rounded-[8px] border border-brand-border">
                   <ShieldAlert size={14} className="text-rotary-yellow" />
-                  <span className="italic">Faça login para ver dados de contato.</span>
+                  <span className="italic">Faça login para ver as informações de contato.</span>
                 </div>
+              ) : (
+                <>
+                  {email && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-surface-raised flex items-center justify-center text-text-muted shrink-0">
+                        <Mail size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">E-mail</p>
+                        <p className="text-sm break-all text-text-main font-medium">{email}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {email && whatsapp && <div className="w-full h-px bg-brand-border"></div>}
+
+                  {whatsapp && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-surface-raised flex items-center justify-center text-text-muted shrink-0">
+                        <Phone size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">WhatsApp</p>
+                        <p className="text-sm text-text-main font-medium">{whatsapp}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!email && !whatsapp && (
+                    <p className="text-sm text-text-muted">Nenhuma informação de contato disponível.</p>
+                  )}
+                </>
               )}
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-surface-raised flex items-center justify-center text-text-muted shrink-0">
-                  <Mail size={18} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">E-mail</p>
-                  <p className={`text-sm break-all ${isGuestView ? 'text-text-muted filter blur-[2px] select-none' : 'text-text-main font-medium'}`}>
-                    {isGuestView ? blurContact(email, 'email') : email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="w-full h-px bg-brand-border"></div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-surface-raised flex items-center justify-center text-text-muted shrink-0">
-                  <Phone size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">WhatsApp</p>
-                  <p className={`text-sm ${isGuestView ? 'text-text-muted filter blur-[2px] select-none' : 'text-text-main font-medium'}`}>
-                    {isGuestView ? blurContact(whatsapp, 'phone') : whatsapp}
-                  </p>
-                </div>
-              </div>
             </div>
 
-            {!isGuestView && (
+            {!ehConvidado && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button className="bg-brand-surface border border-brand-border text-text-main h-12 rounded-[12px] font-semibold text-[13px] flex items-center justify-center gap-2 hover:bg-brand-surface-raised transition-colors">
                   <Mail size={16} />

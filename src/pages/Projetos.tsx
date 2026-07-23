@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Filter, Star, CirclePlay, ChevronRight, Plus } from 'lucide-react';
+import { Star, CirclePlay, ChevronRight, Plus } from 'lucide-react';
 import { AddProjetoForm } from '../components/AddProjetoForm';
 import { DetalhesProjeto } from '../components/DetalhesProjeto';
 import { supabase } from '../lib/supabaseClient';
@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient';
 interface ProjetosProps {
   isGuest?: boolean;
   onGuestBlockedAction?: () => void;
+  onGoToLogin?: () => void;
 }
 
 type Projeto = {
@@ -45,7 +46,7 @@ const normalizeText = (value: string): string =>
 
 const STATUS_DISPLAY_ORDER = ['Planejamento', 'Em Andamento', 'Concluído'];
 
-export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProps) {
+export function Projetos({ isGuest = false, onGuestBlockedAction, onGoToLogin }: ProjetosProps) {
   const [selectedAvenida, setSelectedAvenida] = useState<string>('TODAS');
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProjeto, setSelectedProjeto] = useState<Projeto | null>(null);
@@ -169,22 +170,18 @@ export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProp
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-text-main tracking-tight">Projetos</h1>
-            <div className="flex gap-2">
-              <button className="w-10 h-10 rounded-[12px] bg-brand-surface border border-brand-border flex items-center justify-center text-text-muted hover:text-text-main transition-colors">
-                <Filter size={18} />
-              </button>
-              <button
-                onClick={handleOpenAddProject}
-                className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${
-                  isGuest
-                    ? 'bg-brand-surface border border-brand-border text-text-muted'
-                    : 'bg-cranberry text-on-cranberry hover:bg-cranberry-dark'
-                }`}
-                aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo projeto'}
-              >
-                <Plus size={18} />
-              </button>
-            </div>
+            <button
+              onClick={handleOpenAddProject}
+              className={`h-10 px-4 rounded-xl flex items-center gap-2 text-sm font-medium transition-all ${
+                isGuest
+                  ? 'bg-brand-surface border border-brand-border text-text-muted'
+                  : 'bg-cranberry text-on-cranberry hover:bg-cranberry-dark'
+              }`}
+              aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo projeto'}
+            >
+              <Plus size={16} />
+              <span>Novo Projeto</span>
+            </button>
           </div>
 
           {/* Filtros de Avenida Horizontal (Scrollable) */}
@@ -291,6 +288,7 @@ export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProp
           onClose={() => setSelectedProjeto(null)}
           isGuest={isGuest}
           onGuestBlockedAction={onGuestBlockedAction}
+          onGoToLogin={onGoToLogin}
           onUpdated={async (projetoAtualizado) => {
             setSelectedProjeto(projetoAtualizado);
             await loadProjetos();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, Video, Plus } from 'lucide-react';
+import { Clock, MapPin, Video, Plus } from 'lucide-react';
 import { AddEventoForm } from '../components/AddEventoForm';
 import { DetalhesEvento } from '../components/DetalhesEvento';
 import { formatarDataLocal, formatarPartesDataLocal } from '../lib/dateTime';
@@ -181,22 +181,18 @@ export function Calendario({ isGuest = false, onGuestBlockedAction }: Calendario
         <div className="max-w-md md:max-w-7xl md:px-8 mx-auto flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-text-main tracking-tight">Calendário</h1>
-            <div className="flex gap-2">
-              <div className="w-10 h-10 rounded-[12px] bg-brand-surface border border-brand-border flex items-center justify-center text-cranberry">
-                <CalendarIcon size={20} />
-              </div>
-              <button
-                onClick={handleOpenAddForm}
-                className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${
-                  isGuest
-                    ? 'bg-brand-surface border border-brand-border text-text-muted'
-                    : 'bg-cranberry text-on-cranberry hover:bg-cranberry-dark'
-                }`}
-                aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo compromisso'}
-              >
-                <Plus size={18} />
-              </button>
-            </div>
+            <button
+              onClick={handleOpenAddForm}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all shadow-sm ${
+                isGuest
+                  ? 'bg-brand-surface border border-brand-border text-text-muted'
+                  : 'bg-[#E31C59] hover:bg-[#c41549] text-white'
+              }`}
+              aria-label={isGuest ? 'Ação indisponível para convidado' : 'Novo compromisso'}
+            >
+              <Plus size={16} />
+              <span>Novo Compromisso</span>
+            </button>
           </div>
 
           {/* Filtros */}

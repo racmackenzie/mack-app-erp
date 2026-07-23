@@ -45,20 +45,18 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-brand-bg max-w-md mx-auto">
-      <div className="flex flex-col items-center mb-12">
-        <div className="w-16 h-16 bg-brand-surface-raised border border-brand-border rounded-[12px] flex items-center justify-center mb-6">
-          <div className="w-8 h-8 rounded-full bg-cranberry"></div>
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-text-main mb-2">Mackenzie</h1>
-        <p className="text-sm font-bold tracking-[0.05em] uppercase text-text-muted">
-          Rotaract Club Copilot
-        </p>
+      <div className="flex justify-center mb-12">
+        <img
+          src="/logo-rotaract-mackenzie.png"
+          alt="Rotaract Club Universidade Mackenzie"
+          className="h-16 md:h-20 w-auto object-contain"
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
         <div className="flex flex-col gap-1.5">
           <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
-            E-mail Institucional
+            E-mail
           </label>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={20} />

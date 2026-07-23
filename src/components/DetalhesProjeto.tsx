@@ -53,6 +53,7 @@ interface DetalhesProjetoProps {
   onClose: () => void;
   isGuest?: boolean;
   onGuestBlockedAction?: () => void;
+  onGoToLogin?: () => void;
   onUpdated?: (projetoAtualizado: Projeto) => Promise<void> | void;
 }
 
@@ -61,12 +62,14 @@ export function DetalhesProjeto({
   onClose,
   isGuest = false,
   onGuestBlockedAction,
+  onGoToLogin,
   onUpdated,
 }: DetalhesProjetoProps) {
   const [projetoAtual, setProjetoAtual] = useState<Projeto>(projeto);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [novoComentario, setNovoComentario] = useState('');
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [associados, setAssociados] = useState<AssociadoResumo[]>([]);
   const [isLoadingComentarios, setIsLoadingComentarios] = useState(true);
@@ -82,7 +85,8 @@ export function DetalhesProjeto({
   const [editDetalhes, setEditDetalhes] = useState(projeto.detalhes);
   const [editLinkGrupo, setEditLinkGrupo] = useState(projeto.linkGrupo ?? '');
 
-  const canComment = useMemo(() => !isGuest && Boolean(session?.user?.id), [isGuest, session]);
+  const estaLogado = !!session?.user;
+  const canComment = useMemo(() => !isGuest && estaLogado, [estaLogado, isGuest]);
   const ehLider = projetoAtual?.lider_id === session?.user?.id;
   const ehConselho =
     userProfile?.role === 'conselho' ||
@@ -135,6 +139,12 @@ export function DetalhesProjeto({
   }, [preencherCamposEdicao, projeto]);
 
   const fetchComentarios = useCallback(async () => {
+    if (!session?.user) {
+      setComentarios([]);
+      setIsLoadingComentarios(false);
+      return;
+    }
+
     setIsLoadingComentarios(true);
 
     console.log('ID do projeto aberto:', projetoAtual.id);
@@ -205,7 +215,7 @@ export function DetalhesProjeto({
 
     setComentarios(mergedComentarios);
     setIsLoadingComentarios(false);
-  }, [projetoAtual.id]);
+  }, [projetoAtual.id, session]);
 
   useEffect(() => {
     let isMounted = true;
@@ -218,6 +228,7 @@ export function DetalhesProjeto({
 
       if (isMounted) {
         setSession(data.session ?? null);
+        setSessionLoaded(true);
       }
     };
 
@@ -227,6 +238,7 @@ export function DetalhesProjeto({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      setSessionLoaded(true);
     });
 
     return () => {
@@ -236,8 +248,12 @@ export function DetalhesProjeto({
   }, []);
 
   useEffect(() => {
+    if (!sessionLoaded) {
+      return;
+    }
+
     void fetchComentarios();
-  }, [fetchComentarios]);
+  }, [fetchComentarios, sessionLoaded]);
 
   useEffect(() => {
     let isMounted = true;
@@ -610,79 +626,88 @@ export function DetalhesProjeto({
                 Linha do Tempo e Atas
               </h3>
 
-              <div className="flex flex-col gap-3 md:flex-1 md:min-h-0 md:max-h-[400px] md:overflow-y-auto md:pr-1">
-                {isLoadingComentarios && (
-                  <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
-                    <p className="text-sm text-text-muted">Carregando comentários...</p>
-                  </div>
-                )}
-
-                {!isLoadingComentarios && comentarios.length === 0 && (
-                  <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
-                    <p className="text-sm text-text-muted">Nenhum comentário ainda.</p>
-                  </div>
-                )}
-
-                {!isLoadingComentarios &&
-                  comentarios.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 bg-brand-surface rounded-[12px] border border-brand-border flex gap-3"
-                    >
-                      <img
-                        src={getAuthorAvatar(item)}
-                        alt={getAuthorName(item)}
-                        className="w-10 h-10 rounded-full bg-brand-surface-raised border border-brand-border shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-text-main text-sm">
-                            {item.associados?.nome_social || item.associados?.nome_completo || 'Associado'}
-                          </span>
-                          <span className="text-[10px] text-text-muted">
-                            {item.data_comentario
-                              ? new Date(item.data_comentario).toLocaleDateString('pt-BR', {
-                                  timeZone: 'America/Sao_Paulo',
-                                })
-                              : ''}
-                          </span>
-                        </div>
-                        <p className="text-sm text-text-muted whitespace-pre-wrap">{item.comentario}</p>
+              {estaLogado ? (
+                <>
+                  <div className="flex flex-col gap-3 md:flex-1 md:min-h-0 md:max-h-[400px] md:overflow-y-auto md:pr-1">
+                    {isLoadingComentarios && (
+                      <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
+                        <p className="text-sm text-text-muted">Carregando comentários...</p>
                       </div>
-                    </div>
-                  ))}
-              </div>
+                    )}
 
-              <div className="md:mt-auto md:pt-2 md:bg-brand-bg">
-                <form onSubmit={handleEnviarComentario} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={novoComentario}
-                    onChange={(e) => setNovoComentario(e.target.value)}
-                    onFocus={() => {
-                      if (!session?.user) {
-                        onGuestBlockedAction?.();
-                      }
-                    }}
-                    placeholder={canComment ? 'Adicionar atualização ou ata...' : 'Faça login para comentar'}
-                    disabled={!canComment}
-                    className="flex-1 bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
-                  />
-                  <button
-                    type="submit"
-                    onClick={handleEnviarComentario}
-                    disabled={!canComment || !novoComentario.trim()}
-                    className="w-12 h-12 shrink-0 bg-cranberry text-on-cranberry rounded-[12px] flex items-center justify-center disabled:opacity-50 transition-colors"
-                  >
-                    <Send size={18} className="ml-1" />
-                  </button>
-                </form>
-                {!canComment && (
-                  <p className="text-[12px] text-text-muted mt-2">
-                    Convidados podem visualizar o histórico, mas não podem criar comentários.
+                    {!isLoadingComentarios && comentarios.length === 0 && (
+                      <div className="p-4 bg-brand-surface rounded-[12px] border border-brand-border">
+                        <p className="text-sm text-text-muted">Nenhum comentário ainda.</p>
+                      </div>
+                    )}
+
+                    {!isLoadingComentarios &&
+                      comentarios.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-4 bg-brand-surface rounded-[12px] border border-brand-border flex gap-3"
+                        >
+                          <img
+                            src={getAuthorAvatar(item)}
+                            alt={getAuthorName(item)}
+                            className="w-10 h-10 rounded-full bg-brand-surface-raised border border-brand-border shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-text-main text-sm">
+                                {item.associados?.nome_social || item.associados?.nome_completo || 'Associado'}
+                              </span>
+                              <span className="text-[10px] text-text-muted">
+                                {item.data_comentario
+                                  ? new Date(item.data_comentario).toLocaleDateString('pt-BR', {
+                                      timeZone: 'America/Sao_Paulo',
+                                    })
+                                  : ''}
+                              </span>
+                            </div>
+                            <p className="text-sm text-text-muted whitespace-pre-wrap">{item.comentario}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="md:mt-auto md:pt-2 md:bg-brand-bg">
+                    <form onSubmit={handleEnviarComentario} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={novoComentario}
+                        onChange={(e) => setNovoComentario(e.target.value)}
+                        placeholder="Adicionar atualização ou ata..."
+                        disabled={!canComment}
+                        className="flex-1 bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
+                      />
+                      <button
+                        type="submit"
+                        onClick={handleEnviarComentario}
+                        disabled={!canComment || !novoComentario.trim()}
+                        className="w-12 h-12 shrink-0 bg-cranberry text-on-cranberry rounded-[12px] flex items-center justify-center disabled:opacity-50 transition-colors"
+                      >
+                        <Send size={18} className="ml-1" />
+                      </button>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-8 bg-gray-50 border border-dashed border-gray-200 rounded-2xl text-center h-full md:min-h-[400px]">
+                  <span className="text-3xl mb-2">🔒</span>
+                  <h4 className="font-semibold text-gray-800 text-sm">Conteúdo Restrito</h4>
+                  <p className="text-xs text-gray-500 mt-1 max-w-xs">
+                    A linha do tempo e as atas do projeto são visíveis apenas para membros do clube.
                   </p>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => onGoToLogin?.()}
+                    className="mt-4 px-4 h-10 rounded-[12px] bg-brand-surface border border-brand-border text-text-main text-sm font-semibold hover:bg-brand-surface-raised transition-colors"
+                  >
+                    Fazer login
+                  </button>
+                </div>
+              )}
             </section>
           </div>
         </main>

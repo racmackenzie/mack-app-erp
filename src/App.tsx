@@ -481,11 +481,12 @@ export default function App() {
                 onClose={() => setCurrentRoute('/dashboard')}
               />
             )}
-            {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} />}
+            {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} session={session} />}
             {currentRoute === '/projetos' && (
               <Projetos
                 isGuest={isGuest}
                 onGuestBlockedAction={showGuestRestrictedActionAlert}
+                onGoToLogin={handleGoToLoginFromGuest}
               />
             )}
             {currentRoute === '/calendario' && (
