@@ -38,7 +38,6 @@ export function Sidebar({
           alt="MackApp"
           className="h-10 w-auto object-contain"
         />
-        <span className="ml-3 text-lg font-bold tracking-tight text-text-main">MackApp</span>
       </div>
       <nav className="flex-1 px-4 py-6 flex flex-col gap-2">
         {navItems.map((item) => {
