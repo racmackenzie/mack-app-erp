@@ -16,6 +16,7 @@ interface DashboardProps {
   onNavigate?: (route: string) => void;
   onLogout?: () => Promise<void> | void;
   isGuest?: boolean;
+  onGoToLogin?: () => void;
 }
 
 type Compromisso = {
@@ -65,7 +66,7 @@ const hojeISO = () => {
   return `${ano}-${mes}-${dia}`;
 };
 
-export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = false }: DashboardProps) {
+export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = false, onGoToLogin }: DashboardProps) {
   const [proximosCompromissos, setProximosCompromissos] = useState<Compromisso[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventoDetalhes | null>(null);
   const [projetosDestaque, setProjetosDestaque] = useState<ProjetoDestaque[]>([]);
@@ -296,6 +297,15 @@ export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = fa
             </h2>
             {!isGuest && <h1 className="text-2xl font-bold text-text-main tracking-tight">{displayName}</h1>}
           </div>
+          {isGuest && (
+            <button
+              type="button"
+              onClick={onGoToLogin}
+              className="md:hidden bg-cranberry text-on-cranberry text-xs font-bold tracking-wide uppercase px-4 h-10 rounded-[10px] shadow-sm active:scale-[0.98] transition-transform"
+            >
+              Fazer login
+            </button>
+          )}
           {!isGuest && (
             <div ref={menuRef} className="relative">
               <button

@@ -467,6 +467,7 @@ export default function App() {
                   onNavigate={navigate}
                   onLogout={handleLogout}
                   isGuest={isGuest}
+                  onGoToLogin={handleGoToLoginFromGuest}
                 />
             )}
             {currentRoute === '/perfil' && (
