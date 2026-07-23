@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronRight, CirclePlay, Star } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, ChevronRight, CirclePlay, LogOut, Star, UserCircle2 } from 'lucide-react';
 import { DetalhesEvento, type EventoDetalhes } from '../components/DetalhesEvento';
 import { extrairDataLocalISO, formatarDataLocal, formatarPartesDataLocal } from '../lib/dateTime';
 import { supabase } from '../lib/supabaseClient';
 
 type AssociateIdentity = {
+  foto_url?: string | null;
   nome_social?: string | null;
   nome_completo?: string | null;
   email?: string | null;
@@ -13,6 +14,7 @@ type AssociateIdentity = {
 interface DashboardProps {
   currentAssociate?: AssociateIdentity | null;
   onNavigate?: (route: string) => void;
+  onLogout?: () => Promise<void> | void;
   isGuest?: boolean;
 }
 
@@ -63,12 +65,14 @@ const hojeISO = () => {
   return `${ano}-${mes}-${dia}`;
 };
 
-export function Dashboard({ currentAssociate, onNavigate, isGuest = false }: DashboardProps) {
+export function Dashboard({ currentAssociate, onNavigate, onLogout, isGuest = false }: DashboardProps) {
   const [proximosCompromissos, setProximosCompromissos] = useState<Compromisso[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventoDetalhes | null>(null);
   const [projetosDestaque, setProjetosDestaque] = useState<ProjetoDestaque[]>([]);
   const [isLoadingCompromissos, setIsLoadingCompromissos] = useState(true);
   const [isLoadingProjetos, setIsLoadingProjetos] = useState(true);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const displayName = useMemo(() => {
     if (!currentAssociate) {
@@ -89,6 +93,41 @@ export function Dashboard({ currentAssociate, onNavigate, isGuest = false }: Das
 
     return 'Usuário';
   }, [currentAssociate]);
+
+  const headerAvatarSrc =
+    !isBlank(currentAssociate?.foto_url)
+      ? currentAssociate.foto_url.trim()
+      : `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ffb2be`;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!menuRef.current) {
+        return;
+      }
+
+      if (event.target instanceof Node && !menuRef.current.contains(event.target)) {
+        setMenuAberto(false);
+      }
+    };
+
+    if (menuAberto) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuAberto]);
+
+  const handleGoToPerfil = () => {
+    onNavigate?.('/perfil');
+    setMenuAberto(false);
+  };
+
+  const handleMenuLogout = async () => {
+    setMenuAberto(false);
+    await onLogout?.();
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -258,12 +297,42 @@ export function Dashboard({ currentAssociate, onNavigate, isGuest = false }: Das
             {!isGuest && <h1 className="text-2xl font-bold text-text-main tracking-tight">{displayName}</h1>}
           </div>
           {!isGuest && (
-            <div className="w-12 h-12 rounded-[12px] bg-brand-surface border border-brand-border overflow-hidden">
-              <img
-                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=ffb2be`}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-              />
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuAberto(!menuAberto)}
+                className="w-12 h-12 rounded-[12px] bg-brand-surface border border-brand-border overflow-hidden focus:outline-none focus:ring-2 focus:ring-cranberry/40"
+                aria-haspopup="menu"
+                aria-expanded={menuAberto}
+                aria-label="Abrir menu de perfil"
+              >
+                <img
+                  src={headerAvatarSrc}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              </button>
+
+              {menuAberto && (
+                <div className="absolute right-0 top-14 z-50 bg-white shadow-lg rounded-xl border border-gray-100 p-2 w-40">
+                  <button
+                    type="button"
+                    onClick={handleGoToPerfil}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+                  >
+                    <UserCircle2 size={16} />
+                    Perfil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleMenuLogout()}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Sair
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

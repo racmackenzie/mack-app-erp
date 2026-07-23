@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -54,18 +54,23 @@ export default function App() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const profileLoadRequestIdRef = useRef(0);
 
   const showGuestRestrictedActionAlert = () => {
     alert(GUEST_ACTION_MESSAGE);
   };
 
-  const loadCurrentAssociate = async (userId: string) => {
+  const loadCurrentAssociate = async (userId: string, requestId: number) => {
     try {
       const { data, error } = await supabase
         .from('associados')
         .select('id, foto_url, nome_completo, nome_social, email, telefone, cargo, profissao, sobre_mim, role')
         .eq('id', userId)
         .maybeSingle<AssociateProfile>();
+
+      if (requestId !== profileLoadRequestIdRef.current) {
+        return;
+      }
 
       if (error) {
         throw error;
@@ -82,14 +87,31 @@ export default function App() {
       setUserRole(data.role ?? null);
       setNeedsOnboarding(isBlank(data.telefone) || isBlank(data.nome_social));
     } catch (error) {
+      if (requestId !== profileLoadRequestIdRef.current) {
+        return;
+      }
+
       console.error('Erro ao buscar o associado logado:', error);
       setCurrentAssociate(null);
       setUserRole(null);
       setNeedsOnboarding(true);
     } finally {
-      setProfileLoading(false);
+      if (requestId === profileLoadRequestIdRef.current) {
+        setProfileLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (profileLoading) {
+        console.warn('Forcando encerramento de loading por Timeout');
+        setProfileLoading(false);
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [profileLoading]);
 
   useEffect(() => {
     let isActive = true;
@@ -107,10 +129,13 @@ export default function App() {
         setIsGuest(false);
         setCurrentUserId(session.user.id);
         setCurrentRoute('/dashboard');
-        await loadCurrentAssociate(session.user.id);
+        setProfileLoading(true);
+        const requestId = ++profileLoadRequestIdRef.current;
+        await loadCurrentAssociate(session.user.id, requestId);
         return;
       }
 
+      profileLoadRequestIdRef.current += 1;
       setSession(null);
       setCurrentUserId(null);
       setCurrentAssociate(null);
@@ -121,15 +146,17 @@ export default function App() {
       setProfileLoading(false);
     };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+
       if (!session?.user) {
-        setSession(null);
+        profileLoadRequestIdRef.current += 1;
         setCurrentUserId(null);
         setCurrentAssociate(null);
         setUserRole(null);
         setNeedsOnboarding(false);
-        setIsGuest(true);
-        setCurrentRoute('/dashboard');
+        setIsGuest(event === 'SIGNED_OUT' ? false : true);
+        setCurrentRoute(event === 'SIGNED_OUT' ? '/login' : '/dashboard');
         setProfileLoading(false);
         return;
       }
@@ -139,7 +166,51 @@ export default function App() {
       setCurrentUserId(session.user.id);
       setCurrentRoute('/dashboard');
       setProfileLoading(true);
-      await loadCurrentAssociate(session.user.id);
+      const requestId = ++profileLoadRequestIdRef.current;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('associados')
+          .select('id, foto_url, nome_completo, nome_social, email, telefone, cargo, profissao, sobre_mim, role')
+          .eq('id', session.user.id)
+          .maybeSingle<AssociateProfile>();
+
+        if (requestId !== profileLoadRequestIdRef.current) {
+          return;
+        }
+
+        if (error) {
+          console.error('Erro perfil:', error);
+          setCurrentAssociate(null);
+          setUserRole(null);
+          setNeedsOnboarding(true);
+          return;
+        }
+
+        if (!profile) {
+          setCurrentAssociate(null);
+          setUserRole(null);
+          setNeedsOnboarding(true);
+          return;
+        }
+
+        setCurrentAssociate(profile);
+        setUserRole(profile.role ?? null);
+        setNeedsOnboarding(isBlank(profile.telefone) || isBlank(profile.nome_social));
+      } catch (error) {
+        if (requestId !== profileLoadRequestIdRef.current) {
+          return;
+        }
+
+        console.error('Excecao ao buscar perfil:', error);
+        setCurrentAssociate(null);
+        setUserRole(null);
+        setNeedsOnboarding(true);
+      } finally {
+        if (requestId === profileLoadRequestIdRef.current) {
+          setProfileLoading(false);
+        }
+      }
     });
 
     void syncSession();
@@ -166,8 +237,8 @@ export default function App() {
     setCurrentAssociate(null);
     setCurrentUserId(null);
     setNeedsOnboarding(false);
-    setIsGuest(true);
-    setCurrentRoute('/dashboard');
+    setIsGuest(false);
+    setCurrentRoute('/login');
     setProfileLoading(false);
   };
 
@@ -305,10 +376,36 @@ export default function App() {
             handleLogout={handleLogout}
             isGuest={isGuest}
             onGoToLogin={handleGoToLoginFromGuest}
+            hasSession={Boolean(session)}
+            userProfile={
+              currentAssociate
+                ? {
+                    foto_url: currentAssociate.foto_url,
+                    nome_social: currentAssociate.nome_social,
+                    nome_completo: currentAssociate.nome_completo,
+                  }
+                : null
+            }
           />
           <div className="flex-1 overflow-y-auto relative w-full flex flex-col">
             {currentRoute === '/dashboard' && (
-                <Dashboard currentAssociate={currentAssociate} onNavigate={navigate} isGuest={isGuest} />
+                <Dashboard
+                  currentAssociate={currentAssociate}
+                  onNavigate={navigate}
+                  onLogout={handleLogout}
+                  isGuest={isGuest}
+                />
+            )}
+            {currentRoute === '/perfil' && (
+              <AddAssociadoForm
+                mode="screen"
+                title="Meu Perfil"
+                submitLabel="Salvar Alterações"
+                hideEmail
+                initialValues={onboardingInitialValues}
+                onSubmit={handleOnboardingSubmit}
+                onClose={() => setCurrentRoute('/dashboard')}
+              />
             )}
             {currentRoute === '/associados' && <Associados initialIsGuest={isGuest} />}
             {currentRoute === '/projetos' && (

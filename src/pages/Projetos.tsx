@@ -17,6 +17,7 @@ type Projeto = {
   marcoAtual: string;
   lider: string;
   detalhes: string;
+  linkGrupo?: string | null;
   lider_id?: string | null;
   associados?: {
     nome_social: string | null;
@@ -98,6 +99,7 @@ export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProp
           marcoAtual: pickFirstString(row, ['marco_atual', 'marcoAtual'], 'Marco atual não informado'),
           lider: liderNome,
           detalhes: pickFirstString(row, ['detalhes', 'descricao', 'resumo'], 'Sem detalhes cadastrados.'),
+          linkGrupo: pickFirstString(row, ['link_grupo', 'linkGrupo'], ''),
           lider_id: liderId || null,
           associados: associadoByJoin
             ? {
@@ -289,6 +291,10 @@ export function Projetos({ isGuest = false, onGuestBlockedAction }: ProjetosProp
           onClose={() => setSelectedProjeto(null)}
           isGuest={isGuest}
           onGuestBlockedAction={onGuestBlockedAction}
+          onUpdated={async (projetoAtualizado) => {
+            setSelectedProjeto(projetoAtualizado);
+            await loadProjetos();
+          }}
         />
       )}
     </div>

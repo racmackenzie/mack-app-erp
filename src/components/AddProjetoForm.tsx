@@ -155,7 +155,7 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
-      <div className="flex flex-col bg-brand-bg w-full h-full md:w-[600px] md:max-h-[85vh] md:h-auto md:rounded-2xl md:shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full md:slide-in-from-bottom-0 md:zoom-in-95 duration-300">
+      <div className="flex flex-col bg-brand-bg w-full h-full md:w-full md:max-w-3xl md:max-h-[85vh] md:h-auto md:rounded-2xl md:shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full md:slide-in-from-bottom-0 md:zoom-in-95 duration-300">
       <header className="px-4 h-14 border-b border-brand-border flex items-center justify-between bg-brand-surface shrink-0">
         <h2 className="font-bold text-lg text-text-main">Novo Projeto</h2>
         <button onClick={onClose} className="p-2 -mr-2 text-text-muted hover:text-text-main transition-colors">
@@ -163,9 +163,8 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
         </button>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-4">
-        <form id="add-projeto-form" onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md mx-auto">
-          
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <form id="add-projeto-form" onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
               Nome do Projeto
@@ -182,6 +181,22 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
+              Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
+            >
+              <option value="">Selecione o Status (opcional)</option>
+              {statusOptions.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
               Avenida de Ação
             </label>
             <select
@@ -191,10 +206,23 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
               required
             >
               <option value="" disabled>Selecione a Avenida</option>
-              {avenidas.map(av => (
+              {avenidas.map((av) => (
                 <option key={av} value={av}>{av}</option>
               ))}
             </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
+              Marco Atual
+            </label>
+            <input
+              type="text"
+              value={marcoAtual}
+              onChange={(e) => setMarcoAtual(e.target.value)}
+              placeholder="Ex: Arrecadação iniciada"
+              className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -220,47 +248,6 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
-              Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all appearance-none"
-            >
-              <option value="">Selecione o Status (opcional)</option>
-              {statusOptions.map(st => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
-              Marco Atual
-            </label>
-            <input
-              type="text"
-              value={marcoAtual}
-              onChange={(e) => setMarcoAtual(e.target.value)}
-              placeholder="Ex: Arrecadação iniciada"
-              className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
-              Detalhes / Resumo
-            </label>
-            <textarea
-              value={detalhes}
-              onChange={(e) => setDetalhes(e.target.value)}
-              placeholder="Descreva o objetivo e detalhes do projeto..."
-              className="w-full bg-brand-surface border border-brand-border rounded-[12px] p-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all min-h-[100px] resize-none"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
               Link do Grupo de WhatsApp
             </label>
             <input
@@ -271,21 +258,31 @@ export function AddProjetoForm({ onClose, onCreated }: AddProjetoFormProps) {
               className="w-full bg-brand-surface border border-brand-border rounded-[12px] h-12 px-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all"
             />
           </div>
+
+          <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2">
+            <label className="text-[12px] font-bold tracking-[0.05em] uppercase text-text-muted ml-1">
+              Detalhes / Resumo
+            </label>
+            <textarea
+              value={detalhes}
+              onChange={(e) => setDetalhes(e.target.value)}
+              placeholder="Descreva o objetivo e detalhes do projeto..."
+              className="w-full bg-brand-surface border border-brand-border rounded-[12px] p-4 text-text-main placeholder:text-text-muted focus:outline-none focus:border-cranberry focus:ring-1 focus:ring-cranberry transition-all min-h-[120px] resize-none"
+            />
+          </div>
+
+          <div className="col-span-1 md:col-span-2 pt-1">
+            <button
+              type="submit"
+              form="add-projeto-form"
+              disabled={isSubmitting}
+              className="w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center hover:bg-cranberry-dark active:scale-[0.98] transition-all"
+            >
+              {isSubmitting ? 'Criando...' : 'Criar Projeto'}
+            </button>
+          </div>
         </form>
       </main>
-
-      <footer className="shrink-0 bg-brand-surface border-t border-brand-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4 shadow-lg mt-auto">
-        <div className="max-w-md mx-auto">
-          <button
-            type="submit"
-            form="add-projeto-form"
-            disabled={isSubmitting}
-            className="w-full bg-cranberry text-on-cranberry h-14 rounded-[12px] font-bold text-[16px] flex items-center justify-center hover:bg-cranberry-dark active:scale-[0.98] transition-all"
-          >
-            {isSubmitting ? 'Criando...' : 'Criar Projeto'}
-          </button>
-        </div>
-      </footer>
       </div>
     </div>
   );

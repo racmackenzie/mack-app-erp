@@ -6,9 +6,23 @@ interface SidebarProps {
   handleLogout: () => Promise<void> | void;
   isGuest?: boolean;
   onGoToLogin?: () => void;
+  hasSession?: boolean;
+  userProfile?: {
+    foto_url: string | null;
+    nome_social: string | null;
+    nome_completo: string | null;
+  } | null;
 }
 
-export function Sidebar({ currentRoute, navigate, handleLogout, isGuest = false, onGoToLogin }: SidebarProps) {
+export function Sidebar({
+  currentRoute,
+  navigate,
+  handleLogout,
+  isGuest = false,
+  onGoToLogin,
+  hasSession = false,
+  userProfile = null,
+}: SidebarProps) {
   const navItems = [
     { id: '/dashboard', label: 'Início', icon: Home },
     { id: '/associados', label: 'Membros', icon: Users },
@@ -16,11 +30,18 @@ export function Sidebar({ currentRoute, navigate, handleLogout, isGuest = false,
     { id: '/calendario', label: 'Agenda', icon: CalendarDays },
   ];
 
+  const shouldShowUserPhoto = Boolean(hasSession && !isGuest && userProfile?.foto_url);
+  const avatarAlt = userProfile?.nome_social || userProfile?.nome_completo || 'Foto do associado';
+
   return (
     <aside className="hidden md:flex flex-col w-64 h-full bg-brand-surface border-r border-brand-border shrink-0 z-40">
       <div className="p-6 flex items-center gap-3 border-b border-brand-border">
-        <div className="w-10 h-10 bg-brand-surface-raised border border-brand-border rounded-[8px] flex items-center justify-center">
-          <div className="w-5 h-5 rounded-full bg-cranberry"></div>
+        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 bg-brand-surface-raised flex items-center justify-center">
+          {shouldShowUserPhoto ? (
+            <img src={userProfile?.foto_url ?? ''} alt={avatarAlt} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-cranberry" aria-hidden="true"></div>
+          )}
         </div>
         <div>
           <h1 className="font-bold text-text-main leading-tight">Mackenzie</h1>

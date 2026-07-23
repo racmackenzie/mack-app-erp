@@ -1,54 +1,109 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Mail, Phone, ShieldAlert, User } from 'lucide-react';
 import { DetalhesMembro } from '../components/DetalhesMembro';
+import { supabase } from '../lib/supabaseClient';
 
 interface AssociadosProps {
   initialIsGuest: boolean;
 }
 
+type AssociadoRow = {
+  id: string;
+  ativo: boolean | null;
+  foto_url: string | null;
+  nome_social: string | null;
+  nome_completo: string | null;
+  cargo: string | null;
+  profissao: string | null;
+  email: string | null;
+  telefone: string | null;
+  celular: string | null;
+  sobre_mim: string | null;
+};
+
+type MembroCard = {
+  id: string;
+  nomeCompleto: string;
+  nomeSocial: string;
+  nome: string;
+  cargo: string;
+  profissao: string;
+  email: string;
+  whatsapp: string;
+  avatar: string;
+  sobre: string;
+};
+
+const normalizeText = (value?: string | null): string => (value ?? '').toLowerCase().trim();
+
 export function Associados({ initialIsGuest }: AssociadosProps) {
   const isGuestView = initialIsGuest;
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMembro, setSelectedMembro] = useState<any | null>(null);
+  const [membros, setMembros] = useState<MembroCard[]>([]);
+  const [selectedMembro, setSelectedMembro] = useState<MembroCard | null>(null);
 
-  const membros = [
-    {
-      id: 1,
-      nome: 'Ana Flávia',
-      nomeSocial: 'Ana',
-      cargo: 'Presidente 23-24',
-      profissao: 'Engenheira de Software',
-      email: 'ana.flavia@mackenzie.br',
-      whatsapp: '+55 11 99999-9999',
-      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=Ana&backgroundColor=ffb2be',
-      sobre: 'Entusiasta de tecnologia e impacto social. Acredito que o Rotaract é o melhor lugar para desenvolver liderança na prática.',
-    },
-    {
-      id: 2,
-      nome: 'Carlos Eduardo',
-      nomeSocial: 'Cadu',
-      cargo: 'Diretor de Projetos',
-      profissao: 'Estudante de Administração',
-      email: 'carlos.edu@mackenzie.br',
-      whatsapp: '+55 11 98888-8888',
-      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=Carlos&backgroundColor=d91b5c',
-    },
-    {
-      id: 3,
-      nome: 'Mariana Lima',
-      nomeSocial: 'Mari',
-      cargo: 'Associada Representativa',
-      profissao: 'Designer Gráfico',
-      email: 'mariana.lima@mackenzie.br',
-      whatsapp: '+55 11 97777-7777',
-      avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=Mariana&backgroundColor=2d2d2d',
-    },
-  ];
+  useEffect(() => {
+    let isActive = true;
 
-  const filteredMembros = membros.filter(m => 
-    m.nome.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    m.cargo.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const loadAssociadosAtivos = async () => {
+      const { data, error } = await supabase
+        .from('associados')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome_social', { ascending: true });
+
+      if (!isActive) {
+        return;
+      }
+
+      if (error) {
+        console.error('Erro ao carregar associados ativos:', error);
+        setMembros([]);
+        return;
+      }
+
+      const membrosAtivos = ((data ?? []) as AssociadoRow[]).map((associado) => {
+        const nomeSocial = associado.nome_social || '';
+        const nomeCompleto = associado.nome_completo || '';
+        const nomeBase = nomeSocial || nomeCompleto || 'Associado(a)';
+
+        return {
+          id: associado.id,
+          nomeCompleto,
+          nomeSocial: nomeSocial && nomeSocial !== nomeBase ? nomeSocial : '',
+          nome: nomeBase,
+          cargo: associado.cargo || 'Associado(a)',
+          profissao: associado.profissao || 'Profissão não informada',
+          email: associado.email || 'E-mail não informado',
+          whatsapp: associado.telefone || associado.celular || 'Telefone não informado',
+          avatar: associado.foto_url || '',
+          sobre: associado.sobre_mim || '',
+        };
+      });
+
+      setMembros(membrosAtivos);
+    };
+
+    void loadAssociadosAtivos();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const filteredMembros = useMemo(() => {
+    const query = normalizeText(searchQuery);
+
+    if (!query) {
+      return membros;
+    }
+
+    return membros.filter((membro) =>
+      normalizeText(membro.nomeSocial).includes(query) ||
+      normalizeText(membro.nomeCompleto).includes(query) ||
+      normalizeText(membro.cargo).includes(query)
+    );
+  }, [membros, searchQuery]);
 
   return (
     <div className="min-h-screen bg-brand-bg pb-24">
@@ -79,12 +134,18 @@ export function Associados({ initialIsGuest }: AssociadosProps) {
             onClick={() => setSelectedMembro(membro)}
           >
             <div className="w-14 h-14 rounded-full bg-brand-bg border border-brand-border overflow-hidden shrink-0">
-              <img src={membro.avatar} alt={membro.nome} className="w-full h-full object-cover" />
+              {membro.avatar ? (
+                <img src={membro.avatar} alt={membro.nome} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-text-muted">
+                  <User size={20} />
+                </div>
+              )}
             </div>
             
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-text-main truncate text-base leading-tight">
-                {membro.nome}
+                {membro.nomeSocial || membro.nomeCompleto || 'Associado(a)'}
               </h3>
               <p className="text-[12px] text-text-muted mt-0.5 truncate">{membro.cargo}</p>
               

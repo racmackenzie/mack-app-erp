@@ -17,28 +17,30 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true);
     setErrorMessage('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      const invalidCredentials =
-        error.message.toLowerCase().includes('invalid login credentials') ||
-        error.message.toLowerCase().includes('invalid') ||
-        error.status === 400;
+      if (error) {
+        const invalidCredentials =
+          error.message.toLowerCase().includes('invalid login credentials') ||
+          error.message.toLowerCase().includes('invalid') ||
+          error.status === 400;
 
-      setErrorMessage(
-        invalidCredentials
-          ? 'E-mail ou senha inválidos. Verifique suas credenciais e tente novamente.'
-          : 'Não foi possível realizar o login. Tente novamente em instantes.'
-      );
+        setErrorMessage(
+          invalidCredentials
+            ? 'E-mail ou senha inválidos. Verifique suas credenciais e tente novamente.'
+            : 'Não foi possível realizar o login. Tente novamente em instantes.'
+        );
+        return;
+      }
+
+      // O ciclo global de sessão/loading é controlado pelo onAuthStateChange em App.
+    } finally {
       setLoading(false);
-      return;
     }
-
-    onLogin(false);
-    setLoading(false);
   };
 
   return (
