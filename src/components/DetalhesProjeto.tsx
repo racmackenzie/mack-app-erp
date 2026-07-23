@@ -422,7 +422,7 @@ export function DetalhesProjeto({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-bg md:bg-black/50 md:backdrop-blur-sm md:p-4">
       <div className="flex flex-col bg-brand-bg w-full h-full md:w-full md:max-w-5xl md:max-h-[85vh] md:h-auto md:rounded-2xl md:shadow-2xl overflow-hidden animate-in slide-in-from-right md:slide-in-from-bottom-0 md:zoom-in-95 duration-300">
-        <main className="flex-1 overflow-y-auto md:overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-0">
+        <main className="flex-1 overflow-y-auto md:overflow-hidden pb-2 md:pb-0">
           <div className="p-4 md:p-6 max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-6 items-start md:h-full">
             <section className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-3">

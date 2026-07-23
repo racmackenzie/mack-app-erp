@@ -40,7 +40,7 @@ export function DetalhesMembro({ membro, isGuestView, onClose }: DetalhesMembroP
         <h2 className="font-bold text-lg text-text-main truncate">Perfil do Associado</h2>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto p-4 pb-2">
         <div className="w-full max-w-[860px] mx-auto grid grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] gap-5 md:gap-7">
           <section className="flex flex-col gap-4">
             <div className="bg-brand-surface border border-brand-border rounded-[14px] p-4">

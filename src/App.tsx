@@ -471,7 +471,7 @@ export default function App() {
                 : null
             }
           />
-          <main className="flex-1 relative w-full flex flex-col pb-6">
+          <main className="flex-1 relative w-full flex flex-col pb-2">
             {currentRoute === '/dashboard' && (
               <Dashboard
                 currentAssociate={currentAssociate}
@@ -512,7 +512,7 @@ export default function App() {
                 onGuestBlockedAction={showGuestRestrictedActionAlert}
               />
             )}
-            <div className="w-full h-20 md:hidden" aria-hidden="true" />
+            <div className="w-full h-14 md:hidden" aria-hidden="true" />
           </main>
           <BottomNav currentRoute={currentRoute} navigate={navigate} />
         </>

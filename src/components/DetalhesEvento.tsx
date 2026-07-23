@@ -110,7 +110,7 @@ export function DetalhesEvento({ evento, onClose }: DetalhesEventoProps) {
       </main>
 
       {isOnline ? (
-        <footer className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-4 bg-brand-surface border-t border-brand-border shrink-0 mt-auto">
+        <footer className="p-4 pb-2 md:pb-4 bg-brand-surface border-t border-brand-border shrink-0 mt-auto">
           <div className="max-w-md mx-auto">
             <a
               href={evento.local}
